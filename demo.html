@@ -275,8 +275,8 @@
         <div style="margin-top: 8px">
           <label>BPM (speed)</label>
           <div class="row">
-            <input type="range" id="bpm" min="40" max="180" value="80" />
-            <span id="bpm-val" style="min-width:36px;text-align:right;font-size:13px">80</span>
+            <input type="range" id="bpm" min="20" max="120" value="40" />
+            <span id="bpm-val" style="min-width:36px;text-align:right;font-size:13px">40</span>
           </div>
         </div>
         <div style="margin-top: 8px">
@@ -533,7 +533,15 @@
       onboardingComplete = true;
     }
 
-    onboardingStartBtn.addEventListener('click', dismissOnboarding);
+    function handleOnboardingAction() {
+      dismissOnboarding();
+      startGame();
+    }
+
+    onboardingStartBtn.addEventListener('click', () => {
+      dismissOnboarding();
+      startGame();
+    });
 
     // ── Event Listeners ───────────────────────────────────────────────────
     bpmSlider.addEventListener('input', () => {
@@ -552,11 +560,11 @@
       if (!onboardingComplete && e.key === ' ') {
         e.preventDefault();
         dismissOnboarding();
+        startGame();
       }
     });
 
     // ── Init ──────────────────────────────────────────────────────────────
-    // Don't pre-generate — wait for user to click Start
     characterSequenceEl.innerHTML = '<span style="color:var(--muted);font-size:12px">Click Start to begin</span>';
   </script>
 </body>
