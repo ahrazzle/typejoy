@@ -1,0 +1,563 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Typejoy — Framework Validation</title>
+  <style>
+    :root {
+      --bg: #0d0d1a;
+      --surface: #1a1a2e;
+      --text: #e0e0e0;
+      --muted: #888;
+      --accent: #00e5ff;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      padding: 24px;
+      background: var(--bg);
+      color: var(--text);
+      font-family: system-ui, -apple-system, sans-serif;
+      min-height: 100vh;
+    }
+    h1 {
+      margin: 0 0 4px 0;
+      font-size: 22px;
+      font-weight: 700;
+      color: var(--accent);
+    }
+    .subtitle {
+      color: var(--muted);
+      font-size: 13px;
+      margin-bottom: 20px;
+    }
+    /* Top-bottom layout */
+    .demo-layout {
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+      max-width: 900px;
+    }
+    .stage {
+      position: relative;
+      width: 100%;
+      height: 320px;
+      background: var(--surface);
+      border-radius: 12px;
+      overflow: hidden;
+      border: 1px solid rgba(255,255,255,0.08);
+    }
+    .controls {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+    }
+    .control-group {
+      background: var(--surface);
+      border-radius: 8px;
+      padding: 14px;
+      border: 1px solid rgba(255,255,255,0.06);
+      flex: 1;
+      min-width: 200px;
+    }
+    .control-group h3 {
+      margin: 0 0 10px 0;
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      color: var(--muted);
+    }
+    button {
+      background: var(--accent);
+      color: #000;
+      border: none;
+      border-radius: 6px;
+      padding: 8px 16px;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: transform 100ms ease, box-shadow 100ms ease;
+    }
+    button:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 4px 12px rgba(0,229,255,0.3);
+    }
+    button:active {
+      transform: translateY(0);
+    }
+    button.secondary {
+      background: transparent;
+      color: var(--accent);
+      border: 1px solid var(--accent);
+    }
+    button.large {
+      padding: 12px 24px;
+      font-size: 15px;
+      width: 100%;
+    }
+    select, input[type="text"] {
+      background: rgba(255,255,255,0.06);
+      border: 1px solid rgba(255,255,255,0.12);
+      border-radius: 6px;
+      padding: 6px 10px;
+      color: var(--text);
+      font-size: 13px;
+      width: 100%;
+    }
+    label {
+      display: block;
+      font-size: 12px;
+      color: var(--muted);
+      margin-bottom: 4px;
+    }
+    .row {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+    }
+    .row > * { flex: 1; }
+    .status {
+      font-family: monospace;
+      font-size: 11px;
+      color: var(--muted);
+      line-height: 1.5;
+    }
+    .beatmap-info {
+      font-family: monospace;
+      font-size: 11px;
+      color: var(--muted);
+      line-height: 1.6;
+    }
+    .beatmap-info span { color: var(--text); }
+    .hint {
+      font-size: 11px;
+      color: var(--muted);
+      text-align: center;
+      margin-top: 8px;
+    }
+    kbd {
+      background: rgba(255,255,255,0.1);
+      border: 1px solid rgba(255,255,255,0.15);
+      border-radius: 3px;
+      padding: 1px 5px;
+      font-family: monospace;
+      font-size: 11px;
+    }
+    .character-sequence {
+      display: flex;
+      gap: 6px;
+      flex-wrap: wrap;
+      margin-top: 8px;
+    }
+    .char-box {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-width: 28px;
+      height: 28px;
+      padding: 0 6px;
+      border-radius: 4px;
+      font-family: monospace;
+      font-size: 14px;
+      font-weight: 600;
+      border: 1px solid rgba(255,255,255,0.15);
+      background: rgba(255,255,255,0.04);
+      color: var(--text);
+      transition: all 150ms ease;
+    }
+    .char-box.next {
+      border-color: #ff9100;
+      background: rgba(255,145,0,0.1);
+      color: #ff9100;
+      box-shadow: 0 0 8px rgba(255,145,0,0.2);
+      transform: scale(1.1);
+    }
+    .char-box.hit {
+      border-color: #76ff03;
+      background: rgba(118,255,3,0.1);
+      color: #76ff03;
+    }
+    .char-box.miss {
+      border-color: #ff1744;
+      background: rgba(255,23,68,0.1);
+      color: #ff1744;
+    }
+    .char-box.upcoming {
+      opacity: 0.5;
+    }
+
+    /* Onboarding overlay */
+    .onboarding {
+      position: fixed;
+      inset: 0;
+      background: rgba(13,13,26,0.95);
+      z-index: 100;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+    }
+    .onboarding-content {
+      max-width: 520px;
+      text-align: center;
+    }
+    .onboarding h2 {
+      margin: 0 0 8px 0;
+      font-size: 28px;
+      font-weight: 700;
+      color: var(--accent);
+    }
+    .onboarding p {
+      color: var(--text);
+      font-size: 14px;
+      line-height: 1.6;
+      margin-bottom: 12px;
+    }
+    .onboarding-steps {
+      text-align: left;
+      margin: 20px 0;
+      padding: 16px;
+      background: var(--surface);
+      border-radius: 8px;
+      border: 1px solid rgba(255,255,255,0.08);
+    }
+    .onboarding-steps h4 {
+      margin: 0 0 10px 0;
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      color: var(--muted);
+    }
+    .onboarding-steps ol {
+      margin: 0;
+      padding-left: 20px;
+      color: var(--text);
+      font-size: 13px;
+      line-height: 1.8;
+    }
+    .onboarding-steps li {
+      margin-bottom: 4px;
+    }
+    .onboarding-steps .key-hint {
+      display: inline-block;
+      background: rgba(255,255,255,0.1);
+      border: 1px solid rgba(255,255,255,0.15);
+      border-radius: 3px;
+      padding: 1px 6px;
+      font-family: monospace;
+      font-size: 11px;
+      margin: 0 2px;
+    }
+    .onboarding-close {
+      margin-top: 8px;
+      font-size: 11px;
+      color: var(--muted);
+    }
+  </style>
+</head>
+<body>
+  <h1>Typejoy — Framework Validation</h1>
+  <p class="subtitle">Type the highlighted keys to the beat. Wrong keys are silently ignored. Timing accuracy = score.</p>
+
+  <div class="demo-layout">
+    <!-- Stage on top -->
+    <div class="stage" id="stage">
+      <!-- FeedbackLayer mounts here -->
+    </div>
+
+    <!-- Controls below -->
+    <div class="controls">
+      <div class="control-group">
+        <h3>Beat-Map Settings</h3>
+        <label>Content (type your own!)</label>
+        <input type="text" id="content" value="hello world" />
+        <div style="margin-top: 8px">
+          <label>BPM (speed)</label>
+          <div class="row">
+            <input type="range" id="bpm" min="40" max="180" value="80" />
+            <span id="bpm-val" style="min-width:36px;text-align:right;font-size:13px">80</span>
+          </div>
+        </div>
+        <div style="margin-top: 8px">
+          <label>Difficulty</label>
+          <select id="difficulty">
+            <option value="easy">Easy (±150ms)</option>
+            <option value="medium">Medium (±80ms)</option>
+            <option value="hard">Hard (±40ms)</option>
+            <option value="expert">Expert (±25ms)</option>
+          </select>
+        </div>
+        <div style="margin-top: 10px;">
+          <button id="start-btn" class="large">▶ Start Game</button>
+        </div>
+      </div>
+
+      <div class="control-group">
+        <h3>Type This</h3>
+        <div class="character-sequence" id="character-sequence"></div>
+      </div>
+
+      <div class="control-group">
+        <h3>Status</h3>
+        <div class="status" id="status">
+          <div>Beat-map: <span id="status-beatmap">—</span></div>
+          <div>State: <span id="status-state">idle</span></div>
+          <div>Notes: <span id="status-notes">0</span></div>
+          <div>Cursor: <span id="status-cursor">0</span></div>
+        </div>
+      </div>
+    </div>
+
+    <p class="hint">Press <kbd>Space</kbd> for spaces. <kbd>Esc</kbd> to restart.</p>
+  </div>
+
+  <!-- Onboarding overlay -->
+  <div class="onboarding" id="onboarding">
+    <div class="onboarding-content">
+      <h2>Welcome to Typejoy!</h2>
+      <p>A rhythm-typing game where your keystrokes land on the beat. Type fast, type accurately, and watch the feedback come alive.</p>
+      <div class="onboarding-steps">
+        <h4>How to Play</h4>
+        <ol>
+          <li>Enter a word or phrase in the <strong>Content</strong> box (or keep "hello world")</li>
+          <li>Adjust <strong>BPM</strong> (speed) and <strong>Difficulty</strong> (timing tightness)</li>
+          <li>Click <strong>▶ Start Game</strong> — the keyboard will glow</li>
+          <li>Type the highlighted character shown in the <strong>Type This</strong> row above</li>
+          <li>A floating <span class="key-hint" style="color:#ff9100;border-color:#ff9100">orange keycap</span> shows which key to press — hit it as it pulses!</li>
+          <li>Wrong keys are ignored. Press the <strong>right key at the right time</strong> for the full particle burst</li>
+        </ol>
+      </div>
+      <p style="font-size:12px;color:var(--muted)">The orange glow intensifies as the note approaches. Land it inside the timing window for <strong style="color:#00e5ff">Perfect</strong>, <strong style="color:#76ff03">Great</strong>, or <strong style="color:#ffea00">Good</strong>.</p>
+      <button id="onboarding-start" class="large" style="margin-top:16px">Got It — Let's Play!</button>
+      <p class="onboarding-close">Press <kbd>Space</kbd> to start anytime</p>
+    </div>
+  </div>
+
+  <script type="module">
+    import { RawBus, NormalizedBus, BeatClockJudge, StaticBeatMap, BeatMapGenerator, FeedbackLayer, DebugPlugin } from './dist/bundle.js';
+
+    // ── State ─────────────────────────────────────────────────────────────
+    let feedbackLayer = null;
+    let debugPlugin = null;
+    let judge = null;
+    let rawBus = null;
+    let normBus = null;
+    let beatMap = null;
+    let generator = new BeatMapGenerator();
+    let gameActive = false;
+    let startTime = 0;
+    let tickHandle = null;
+    let onboardingComplete = false;
+
+    const stage = document.getElementById('stage');
+    const contentInput = document.getElementById('content');
+    const bpmSlider = document.getElementById('bpm');
+    const bpmVal = document.getElementById('bpm-val');
+    const difficultySelect = document.getElementById('difficulty');
+    const startBtn = document.getElementById('start-btn');
+    const onboardingOverlay = document.getElementById('onboarding');
+    const onboardingStartBtn = document.getElementById('onboarding-start');
+    const characterSequenceEl = document.getElementById('character-sequence');
+
+    // ── Initialize Feedback Layer ─────────────────────────────────────────
+    feedbackLayer = new FeedbackLayer({
+      container: stage,
+      width: 900,
+      height: 320,
+    });
+    feedbackLayer.start();
+
+    // ── Debug Plugin ──────────────────────────────────────────────────────
+    debugPlugin = new DebugPlugin();
+    debugPlugin.setFeedbackLayer(feedbackLayer);
+
+    // ── Character Sequence Display ────────────────────────────────────────
+    function renderCharacterSequence(cursor) {
+      if (!beatMap) {
+        characterSequenceEl.innerHTML = '<span style="color:var(--muted);font-size:12px">Click Start to begin</span>';
+        return;
+      }
+      const notes = beatMap.notes;
+      const html = notes.map((note, i) => {
+        let cls = 'char-box';
+        if (i < cursor) cls += ' hit';
+        else if (i === cursor) cls += ' next';
+        else if (i < cursor + 5) cls += ' upcoming';
+        else return '';
+        const label = note.key === ' ' ? '␣' : note.key;
+        return `<span class="${cls}" data-idx="${i}">${label}</span>`;
+      }).join('');
+      characterSequenceEl.innerHTML = html || '<span style="color:var(--muted);font-size:12px">Complete!</span>';
+    }
+
+    // ── Generate Beat-Map (always reads current input values) ─────────────
+    function generateBeatMap() {
+      const content = contentInput.value || 'hello world';
+      const bpm = parseInt(bpmSlider.value);
+      const difficulty = difficultySelect.value;
+
+      const notes = generator.generate(content, { bpm, difficulty });
+      beatMap = new StaticBeatMap(notes);
+
+      document.getElementById('status-beatmap').textContent = `${notes.length} notes @ ${bpm} BPM`;
+      document.getElementById('status-notes').textContent = notes.length;
+      document.getElementById('status-cursor').textContent = '0';
+      document.getElementById('status-state').textContent = 'ready';
+
+      renderCharacterSequence(0);
+      return beatMap;
+    }
+
+    // ── Start Game (always regenerates beat-map from current settings) ────
+    function startGame() {
+      // Always regenerate so Content and BPM changes take effect
+      generateBeatMap();
+      if (beatMap.length === 0) return;
+
+      // Clean up previous
+      if (judge) judge.detach();
+      if (normBus) normBus.stop();
+      if (rawBus) rawBus.stop();
+      if (tickHandle) clearInterval(tickHandle);
+
+      // Create new bus + judge
+      rawBus = new RawBus(window);
+      normBus = new NormalizedBus(rawBus);
+
+      const difficulty = difficultySelect.value;
+      judge = new BeatClockJudge(beatMap, { difficulty }, {
+        onHit: (event) => {
+          debugPlugin.onHit(event.judgment, event.key, event.delta);
+          feedbackLayer.renderHit(event.judgment, event.key, event.delta);
+          updateStatus();
+        },
+        onMiss: (key, expectedKey, delta) => {
+          debugPlugin.onMiss(key, expectedKey);
+          feedbackLayer.renderMiss(key, expectedKey);
+          updateStatus();
+        },
+        onNoteStale: (note) => {
+          debugPlugin.onNoteStale(note);
+          feedbackLayer.renderStale(note);
+          updateStatus();
+        },
+        onCombo: (count, multiplier) => {
+          debugPlugin.onCombo(count, multiplier);
+          feedbackLayer.renderCombo(count, multiplier);
+        },
+        onComboBreak: (prev) => {},
+        onStreakThreshold: (count) => {
+          debugPlugin.onStreakThreshold(count);
+        },
+      });
+
+      // Wire: RawBus → NormalizedBus → BeatClockJudge
+      normBus.start();
+      judge.attach(normBus);
+      rawBus.start();
+
+      // Connect judge to feedback layer for expected-key indicator
+      feedbackLayer.setJudge(judge);
+
+      // Start game
+      gameActive = true;
+      startTime = performance.now();
+      debugPlugin.onGameStart({
+        title: contentInput.value,
+        artist: 'Typejoy',
+        bpm: parseInt(bpmSlider.value),
+        difficulty,
+        notes: beatMap.notes,
+        timingWindows: { perfect: 150, great: 200, good: 300 },
+        nudgeEnabled: true,
+        accessibility: {
+          highContrast: false,
+          oneHandedMode: false,
+          timingWindowScale: 1.0,
+          announceCombos: true,
+          announceProgress: true,
+          reducedMotion: false,
+        },
+      });
+
+      feedbackLayer.reset();
+      feedbackLayer.start();
+
+      // Tick loop for stale note detection
+      tickHandle = setInterval(() => {
+        if (!gameActive) return;
+        const elapsed = performance.now() - startTime;
+        judge.tick(elapsed);
+
+        if (judge.state.isComplete) {
+          endGame();
+        }
+      }, 50);
+
+      document.getElementById('status-state').textContent = 'playing';
+      renderCharacterSequence(0);
+    }
+
+    function endGame() {
+      gameActive = false;
+      if (tickHandle) clearInterval(tickHandle);
+      rawBus?.stop();
+      document.getElementById('status-state').textContent = 'complete';
+
+      const results = {
+        title: contentInput.value,
+        artist: 'Typejoy',
+        score: 0,
+        maxCombo: judge.state.maxCombo,
+        totalNotes: beatMap.length,
+        judgments: { perfect: 0, great: 0, good: 0, miss: 0 },
+        accuracy: 0,
+        passed: true,
+        duration: 0,
+      };
+      debugPlugin.onSongComplete(results);
+      debugPlugin.onGameEnd(results);
+      renderCharacterSequence(beatMap.length);
+    }
+
+    function updateStatus() {
+      if (!judge) return;
+      document.getElementById('status-cursor').textContent = judge.state.cursor;
+      renderCharacterSequence(judge.state.cursor);
+    }
+
+    // ── Onboarding ────────────────────────────────────────────────────────
+    function dismissOnboarding() {
+      onboardingOverlay.style.display = 'none';
+      onboardingComplete = true;
+    }
+
+    onboardingStartBtn.addEventListener('click', dismissOnboarding);
+
+    // ── Event Listeners ───────────────────────────────────────────────────
+    bpmSlider.addEventListener('input', () => {
+      bpmVal.textContent = bpmSlider.value;
+    });
+
+    startBtn.addEventListener('click', () => {
+      startGame();
+    });
+
+    // Keyboard shortcuts
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape' && gameActive) {
+        endGame();
+      }
+      if (!onboardingComplete && e.key === ' ') {
+        e.preventDefault();
+        dismissOnboarding();
+      }
+    });
+
+    // ── Init ──────────────────────────────────────────────────────────────
+    // Don't pre-generate — wait for user to click Start
+    characterSequenceEl.innerHTML = '<span style="color:var(--muted);font-size:12px">Click Start to begin</span>';
+  </script>
+</body>
+</html>
