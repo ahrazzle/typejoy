@@ -20,6 +20,7 @@ import {
 } from './types.js';
 import { SVGKeyboardRenderer } from './svg-keyboard.js';
 import { ParticleSystem } from './particle-system.js';
+import { ApproachRingSystem } from './approach-ring-system.js';
 import { normalizeKey } from './keyboard-layout.js';
 
 export interface FeedbackLayerOptions {
@@ -36,6 +37,7 @@ export class FeedbackLayer implements FeedbackLayerInterface {
   private canvas: HTMLCanvasElement;
   private keyboard: SVGKeyboardRenderer;
   private particles: ParticleSystem;
+  private approachRings: ApproachRingSystem;
   private liveRegion: HTMLElement;
   private comboDisplay: HTMLElement;
   private width: number;
@@ -47,6 +49,9 @@ export class FeedbackLayer implements FeedbackLayerInterface {
   // Expected-key indicator elements
   private expectedKeyIndicator: HTMLElement | null = null;
   private expectedKeyLabel: HTMLElement | null = null;
+
+  // Approach ring canvas
+  private approachRingCanvas: HTMLCanvasElement;
 
   // State
   private maxComboReached: number = 0;
@@ -103,6 +108,21 @@ export class FeedbackLayer implements FeedbackLayerInterface {
     this.particles.setTheme(this.theme);
     this.particles.resize(this.width, this.height);
 
+    // Approach ring canvas (in front of particles, behind combo display)
+    this.approachRingCanvas = document.createElement('canvas');
+    this.approachRingCanvas.style.position = 'absolute';
+    this.approachRingCanvas.style.top = '0';
+    this.approachRingCanvas.style.left = '0';
+    this.approachRingCanvas.style.width = '100%';
+    this.approachRingCanvas.style.height = '100%';
+    this.approachRingCanvas.style.zIndex = '3';
+    this.approachRingCanvas.style.pointerEvents = 'none';
+    this.container.appendChild(this.approachRingCanvas);
+
+    // Approach ring system
+    this.approachRings = new ApproachRingSystem(this.approachRingCanvas);
+    this.approachRings.resize(this.width, this.height);
+
     // ARIA live region (accessible announcements)
     this.liveRegion = document.createElement('div');
     this.liveRegion.setAttribute('role', 'status');
@@ -132,7 +152,8 @@ export class FeedbackLayer implements FeedbackLayerInterface {
     this.comboDisplay.style.color = this.theme.colors.primary;
     this.comboDisplay.style.zIndex = '3';
     this.comboDisplay.style.pointerEvents = 'none';
-    this.comboDisplay.style.textShadow = `0 0 10px ${this.theme.colors.primary}`;
+    this.comboDisplay.style.textShadow = 'none';
+    this.comboDisplay.style.willChange = 'transform';
     this.comboDisplay.style.opacity = '0';
     this.comboDisplay.style.transition = 'opacity 200ms ease, transform 200ms ease';
     this.container.appendChild(this.comboDisplay);
@@ -250,16 +271,19 @@ export class FeedbackLayer implements FeedbackLayerInterface {
     this.keyboard.applyTheme(theme, this.highContrast);
     this.particles.setTheme(theme);
     this.comboDisplay.style.color = theme.colors.primary;
-    this.comboDisplay.style.textShadow = `0 0 10px ${this.theme.colors.primary}`;
+    this.comboDisplay.style.textShadow = 'none';
   }
 
   /**
    * Provide a reference to the judge so the feedback layer can query the current
    * expected note and render a persistent expected-key indicator.
    */
-  setJudge(judge: { getCurrentNote: () => BeatNote | undefined; getNextNote: (ms?: number) => BeatNote | undefined }): void {
+  setJudge(judge: { getCurrentNote: () => BeatNote | undefined; getNextNote: (ms?: number) => BeatNote | undefined; getSongTime: () => number; beatMap: { notes: BeatNote[] } }): void {
     this.judge = judge;
     this.createExpectedKeyIndicator();
+    this.approachRings.judge = judge;
+    this.approachRings.keyboard = this.keyboard as unknown as { getKeyElement: (keyId: string) => SVGElement | null };
+    this.approachRings.container = this.container;
   }
 
   // ─────────────────────────────────────────────────────────────────────────
@@ -480,6 +504,7 @@ export class FeedbackLayer implements FeedbackLayerInterface {
     this.lastStreakThreshold = 0;
     this.keyboard.reset();
     this.particles.clear();
+    this.approachRings.clear();
     this.comboDisplay.style.opacity = '0';
     this.comboDisplay.textContent = '';
     this.nudgeKeys.clear();
@@ -491,17 +516,20 @@ export class FeedbackLayer implements FeedbackLayerInterface {
     this.container.style.width = `${width}px`;
     this.container.style.height = `${height}px`;
     this.particles.resize(width, height);
+    this.approachRings.resize(width, height);
   }
 
   start(): void {
     this.gameActive = true;
     this.particles.start();
+    this.approachRings.start();
     this.startNudgeLoop();
   }
 
   stop(): void {
     this.gameActive = false;
     this.particles.stop();
+    this.approachRings.stop();
   }
 
   private startNudgeLoop(): void {

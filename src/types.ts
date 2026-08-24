@@ -318,4 +318,6 @@ export interface FeedbackLayer {
   start(): void;
   /** Stop the animation loop */
   stop(): void;
+  /** Connect the judge for expected-key indicator and approach rings */
+  setJudge(judge: { getCurrentNote: () => BeatNote | undefined; getNextNote: (ms?: number) => BeatNote | undefined; getSongTime: () => number; beatMap: { notes: BeatNote[] } }): void;
 }

@@ -11,6 +11,7 @@ import { NormalizedBus } from '../src/NormalizedBus';
 import { BeatClockJudge } from '../src/BeatClockJudge';
 import { StaticBeatMap } from '../src/BeatMap';
 import { PluginRegistry } from '../src/PluginHooks';
+import { BeatMapGenerator } from '../src/beatmap-generator';
 import type { 
   BeatNote, 
   JudgmentEvent, 
@@ -409,6 +410,58 @@ console.log('\\n[9] BeatClockJudge — Note accessors');
   assertEqual(current2?.key, 'j', 'getCurrentNote advances with cursor');
 
   normBus.stop();
+}
+
+// Test: onWrongKey hook fires when wrong key is pressed
+console.log('\\n[10] BeatClockJudge — onWrongKey hook');
+{
+  const notes: BeatNote[] = [
+    { key: 'f', time: 1000, window: 150 },
+  ];
+
+  const beatMap = new StaticBeatMap(notes);
+  const windows: TimingWindows = { perfect: 40, great: 80, good: 150 };
+
+  const wrongKeys: Array<{ key: string; expectedKey: string }> = [];
+
+  const hooks: Partial<PluginHooksInterface> = {
+    onHit: () => {},
+    onMiss: () => {},
+    onNoteStale: () => {},
+    onWrongKey: (key: string, expectedKey: string) => {
+      wrongKeys.push({ key, expectedKey });
+    },
+  };
+
+  const judge = new BeatClockJudge(beatMap, { difficulty: 'easy', windows }, hooks);
+
+  const rawBus = new RawBus();
+  const normBus = new NormalizedBus(rawBus);
+  normBus.start();
+  judge.attach(normBus);
+
+  // Press WRONG key
+  rawBus.inject('g', 'KeyG', 'keydown', 1000);
+  assertEqual(wrongKeys.length, 1, 'onWrongKey fired for wrong key');
+  assertEqual(wrongKeys[0].key, 'g', 'Wrong key is "g"');
+  assertEqual(wrongKeys[0].expectedKey, 'f', 'Expected key is "f"');
+
+  // Press correct key
+  rawBus.inject('f', 'KeyF', 'keydown', 1000);
+  assertEqual(wrongKeys.length, 1, 'onWrongKey not fired for correct key');
+
+  normBus.stop();
+}
+
+// Test: Character order is preserved (no hand-alternation shuffle)
+console.log('\\n[11] BeatMapGenerator — Character order preserved');
+{
+  const gen = new BeatMapGenerator();
+  const content = 'abcdef123456';
+  const notes = gen.generate(content, { bpm: 60, difficulty: 'easy' });
+
+  const result = notes.map(n => n.key).join('');
+  assertEqual(result, content, 'Character order matches input exactly');
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

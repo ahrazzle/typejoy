@@ -506,6 +506,8 @@
       gameActive = false;
       if (tickHandle) clearInterval(tickHandle);
       rawBus?.stop();
+      feedbackLayer.stop();
+      feedbackLayer.reset();
       document.getElementById('status-state').textContent = 'complete';
 
       const results = {

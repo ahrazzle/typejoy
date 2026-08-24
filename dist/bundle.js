@@ -1473,6 +1473,200 @@ var ParticleSystem = class {
   }
 };
 
+// src/approach-ring-system.ts
+var ApproachRingSystem = class {
+  canvas;
+  ctx;
+  rings = [];
+  animationId = null;
+  width = 0;
+  height = 0;
+  // Configuration
+  approachTime = 1500;
+  // ms before hit when ring starts
+  maxScale = 3;
+  // Ring starts at 3x key size
+  // Colors
+  ringColor = "#ffffff";
+  perfectColor = "#00e5ff";
+  greatColor = "#76ff03";
+  goodColor = "#ffea00";
+  missColor = "#ff1744";
+  // External references (set by feedback layer)
+  judge = null;
+  keyboard = null;
+  container = null;
+  constructor(canvas) {
+    this.canvas = canvas;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) throw new Error("Could not get 2d context from canvas");
+    this.ctx = ctx;
+    this.canvas.style.pointerEvents = "none";
+    this.canvas.style.position = "absolute";
+    this.canvas.style.top = "0";
+    this.canvas.style.left = "0";
+    this.canvas.style.width = "100%";
+    this.canvas.style.height = "100%";
+  }
+  /** Resize the canvas */
+  resize(width, height) {
+    this.width = width;
+    this.height = height;
+    const dpr = window.devicePixelRatio || 1;
+    this.canvas.width = width * dpr;
+    this.canvas.height = height * dpr;
+    this.ctx.scale(dpr, dpr);
+  }
+  /** Clear all rings */
+  clear() {
+    this.rings = [];
+  }
+  /** Mark a ring as judged so it can animate out */
+  markJudged(note, judgment) {
+    for (const ring of this.rings) {
+      if (ring.note === note) {
+        ring.judged = true;
+        ring.judgment = judgment;
+        break;
+      }
+    }
+  }
+  /** Get the screen position for a key */
+  getKeyPosition(keyId) {
+    if (!this.keyboard || !this.container) return null;
+    const keyEl = this.keyboard.getKeyElement(keyId);
+    if (!keyEl) return null;
+    const keyRect = keyEl.getBoundingClientRect();
+    const containerRect = this.container.getBoundingClientRect();
+    return {
+      x: keyRect.left - containerRect.left + keyRect.width / 2,
+      y: keyRect.top - containerRect.top + keyRect.height / 2,
+      width: keyRect.width,
+      height: keyRect.height
+    };
+  }
+  /** Update ring positions and spawn new rings for upcoming notes */
+  update() {
+    if (!this.judge) return;
+    const songTime = this.judge.getSongTime();
+    for (const note of this.judge.beatMap.notes) {
+      if (this.rings.some((r) => r.note === note)) continue;
+      if (note.time - songTime > this.approachTime) continue;
+      if (songTime > note.time + 300) continue;
+      const pos = this.getKeyPosition(note.key);
+      if (!pos) continue;
+      this.rings.push({
+        note,
+        keyX: pos.x,
+        keyY: pos.y,
+        keyWidth: pos.width,
+        keyHeight: pos.height,
+        startTime: note.time - this.approachTime,
+        hitTime: note.time,
+        judged: false,
+        judgment: null
+      });
+    }
+    for (let i = this.rings.length - 1; i >= 0; i--) {
+      const ring = this.rings[i];
+      if (ring.judged && songTime > ring.hitTime + 200) {
+        this.rings.splice(i, 1);
+      } else if (!ring.judged && songTime > ring.hitTime + 400) {
+        ring.judged = true;
+        ring.judgment = "miss";
+      }
+    }
+  }
+  /** Render all active rings */
+  render() {
+    if (!this.judge) return;
+    const songTime = this.judge.getSongTime();
+    const ctx = this.ctx;
+    ctx.clearRect(0, 0, this.width, this.height);
+    for (const ring of this.rings) {
+      const timeUntilHit = ring.hitTime - songTime;
+      const progress = 1 - timeUntilHit / this.approachTime;
+      if (ring.judged) {
+        this.renderJudgedRing(ctx, ring, songTime);
+        continue;
+      }
+      const scale = this.maxScale + (1 - this.maxScale) * progress;
+      const radiusX = ring.keyWidth / 2 * scale;
+      const radiusY = ring.keyHeight / 2 * scale;
+      const color = this.getRingColor(progress);
+      const alpha = Math.min(1, progress * 2);
+      ctx.save();
+      ctx.globalAlpha = alpha;
+      ctx.strokeStyle = color;
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.ellipse(ring.keyX, ring.keyY, radiusX, radiusY, 0, 0, Math.PI * 2);
+      ctx.stroke();
+      if (progress > 0.5) {
+        const glowAlpha = (progress - 0.5) * 0.3;
+        ctx.globalAlpha = glowAlpha;
+        ctx.fillStyle = color;
+        ctx.beginPath();
+        ctx.ellipse(ring.keyX, ring.keyY, radiusX * 0.8, radiusY * 0.8, 0, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      ctx.restore();
+    }
+  }
+  renderJudgedRing(ctx, ring, songTime) {
+    const timeSinceHit = songTime - ring.hitTime;
+    const fadeProgress = Math.min(1, timeSinceHit / 200);
+    if (fadeProgress >= 1) return;
+    const alpha = 1 - fadeProgress;
+    const colors = {
+      perfect: this.perfectColor,
+      great: this.greatColor,
+      good: this.goodColor,
+      miss: this.missColor
+    };
+    const color = colors[ring.judgment || "miss"];
+    const expandScale = ring.judgment === "perfect" ? 2 : 1.5;
+    const radiusX = ring.keyWidth / 2 * (1 + fadeProgress * expandScale);
+    const radiusY = ring.keyHeight / 2 * (1 + fadeProgress * expandScale);
+    ctx.save();
+    ctx.globalAlpha = alpha * 0.6;
+    ctx.strokeStyle = color;
+    ctx.lineWidth = 3 * (1 - fadeProgress);
+    ctx.beginPath();
+    ctx.ellipse(ring.keyX, ring.keyY, radiusX, radiusY, 0, 0, Math.PI * 2);
+    ctx.stroke();
+    if (ring.judgment === "perfect" || ring.judgment === "great") {
+      ctx.globalAlpha = alpha * 0.3;
+      ctx.fillStyle = color;
+      ctx.beginPath();
+      ctx.ellipse(ring.keyX, ring.keyY, ring.keyWidth * 0.6, ring.keyHeight * 0.6, 0, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    ctx.restore();
+  }
+  getRingColor(progress) {
+    if (progress < 0.3) return this.ringColor;
+    if (progress < 0.6) return this.perfectColor;
+    return this.greatColor;
+  }
+  /** Start the animation loop */
+  start() {
+    const loop = () => {
+      this.update();
+      this.render();
+      this.animationId = requestAnimationFrame(loop);
+    };
+    this.animationId = requestAnimationFrame(loop);
+  }
+  /** Stop the animation loop */
+  stop() {
+    if (this.animationId !== null) {
+      cancelAnimationFrame(this.animationId);
+      this.animationId = null;
+    }
+  }
+};
+
 // src/feedback-layer.ts
 var FeedbackLayer = class {
   container;
@@ -1481,6 +1675,7 @@ var FeedbackLayer = class {
   canvas;
   keyboard;
   particles;
+  approachRings;
   liveRegion;
   comboDisplay;
   width;
@@ -1490,6 +1685,8 @@ var FeedbackLayer = class {
   // Expected-key indicator elements
   expectedKeyIndicator = null;
   expectedKeyLabel = null;
+  // Approach ring canvas
+  approachRingCanvas;
   // State
   maxComboReached = 0;
   nudgeKeys = /* @__PURE__ */ new Map();
@@ -1533,6 +1730,17 @@ var FeedbackLayer = class {
     this.particles = new ParticleSystem(this.canvas);
     this.particles.setTheme(this.theme);
     this.particles.resize(this.width, this.height);
+    this.approachRingCanvas = document.createElement("canvas");
+    this.approachRingCanvas.style.position = "absolute";
+    this.approachRingCanvas.style.top = "0";
+    this.approachRingCanvas.style.left = "0";
+    this.approachRingCanvas.style.width = "100%";
+    this.approachRingCanvas.style.height = "100%";
+    this.approachRingCanvas.style.zIndex = "3";
+    this.approachRingCanvas.style.pointerEvents = "none";
+    this.container.appendChild(this.approachRingCanvas);
+    this.approachRings = new ApproachRingSystem(this.approachRingCanvas);
+    this.approachRings.resize(this.width, this.height);
     this.liveRegion = document.createElement("div");
     this.liveRegion.setAttribute("role", "status");
     this.liveRegion.setAttribute("aria-live", "polite");
@@ -1559,7 +1767,8 @@ var FeedbackLayer = class {
     this.comboDisplay.style.color = this.theme.colors.primary;
     this.comboDisplay.style.zIndex = "3";
     this.comboDisplay.style.pointerEvents = "none";
-    this.comboDisplay.style.textShadow = `0 0 10px ${this.theme.colors.primary}`;
+    this.comboDisplay.style.textShadow = "none";
+    this.comboDisplay.style.willChange = "transform";
     this.comboDisplay.style.opacity = "0";
     this.comboDisplay.style.transition = "opacity 200ms ease, transform 200ms ease";
     this.container.appendChild(this.comboDisplay);
@@ -1644,7 +1853,7 @@ var FeedbackLayer = class {
     this.keyboard.applyTheme(theme, this.highContrast);
     this.particles.setTheme(theme);
     this.comboDisplay.style.color = theme.colors.primary;
-    this.comboDisplay.style.textShadow = `0 0 10px ${this.theme.colors.primary}`;
+    this.comboDisplay.style.textShadow = "none";
   }
   /**
    * Provide a reference to the judge so the feedback layer can query the current
@@ -1653,6 +1862,9 @@ var FeedbackLayer = class {
   setJudge(judge) {
     this.judge = judge;
     this.createExpectedKeyIndicator();
+    this.approachRings.judge = judge;
+    this.approachRings.keyboard = this.keyboard;
+    this.approachRings.container = this.container;
   }
   // ─────────────────────────────────────────────────────────────────────────
   // Accessibility
@@ -1825,6 +2037,7 @@ var FeedbackLayer = class {
     this.lastStreakThreshold = 0;
     this.keyboard.reset();
     this.particles.clear();
+    this.approachRings.clear();
     this.comboDisplay.style.opacity = "0";
     this.comboDisplay.textContent = "";
     this.nudgeKeys.clear();
@@ -1835,15 +2048,18 @@ var FeedbackLayer = class {
     this.container.style.width = `${width}px`;
     this.container.style.height = `${height}px`;
     this.particles.resize(width, height);
+    this.approachRings.resize(width, height);
   }
   start() {
     this.gameActive = true;
     this.particles.start();
+    this.approachRings.start();
     this.startNudgeLoop();
   }
   stop() {
     this.gameActive = false;
     this.particles.stop();
+    this.approachRings.stop();
   }
   startNudgeLoop() {
     const loop = () => {
