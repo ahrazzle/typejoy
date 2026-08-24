@@ -289,8 +289,9 @@
             <option value="expert">Expert (±25ms)</option>
           </select>
         </div>
-        <div style="margin-top: 10px;">
+        <div style="margin-top: 10px; display: flex; gap: 8px;">
           <button id="start-btn" class="large">▶ Start Game</button>
+          <button id="how-to-play-btn" class="secondary">?</button>
         </div>
       </div>
 
@@ -313,8 +314,8 @@
     <p class="hint">Press <kbd>Space</kbd> for spaces. <kbd>Esc</kbd> to restart.</p>
   </div>
 
-  <!-- Onboarding overlay -->
-  <div class="onboarding" id="onboarding">
+  <!-- Onboarding overlay (hidden by default, shown via How to Play button) -->
+  <div class="onboarding" id="onboarding" style="display: none;">
     <div class="onboarding-content">
       <h2>Welcome to Typejoy!</h2>
       <p>A rhythm-typing game where your keystrokes land on the beat. Type fast, type accurately, and watch the feedback come alive.</p>
@@ -560,6 +561,12 @@
 
     startBtn.addEventListener('click', () => {
       startGame();
+    });
+
+    // How to Play button shows the onboarding overlay
+    const howToPlayBtn = document.getElementById('how-to-play-btn');
+    howToPlayBtn.addEventListener('click', () => {
+      onboardingOverlay.style.display = 'flex';
     });
 
     // Keyboard shortcuts
