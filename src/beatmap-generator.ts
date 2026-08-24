@@ -32,28 +32,12 @@ const TIMING_WINDOWS: Record<Difficulty, number> = {
   expert: 25,
 };
 
-/** Characters typed by the left hand. */
-const LEFT_HAND_KEYS = new Set([
-  'q', 'w', 'e', 'r', 't',
-  'a', 's', 'd', 'f', 'g',
-  'z', 'x', 'c', 'v', 'b',
-]);
-
-/** Characters typed by the right hand (includes space). */
-
 /** Common letters that get doubled notes on hard difficulty. */
 const COMMON_LETTERS = new Set(['e', 't', 'a', 'o', 'i', 'n', 's', 'r']);
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Helpers
 // ─────────────────────────────────────────────────────────────────────────────
-
-/** Returns the hand ('left' | 'right') for a given key character. */
-function handOf(key: string): 'left' | 'right' {
-  if (LEFT_HAND_KEYS.has(key)) return 'left';
-  // Default to right hand for any character not in left-hand set.
-  return 'right';
-}
 
 /**
  * Computes the effective BPM. If `wordsPerMinute` is provided, derives BPM
@@ -106,9 +90,6 @@ export class BeatMapGenerator {
     if (options.difficulty === 'hard') {
       injectDoubledNotes(notes, beatInterval);
     }
-
-    // ── Step 3: Hand-alternation shuffle ─────────────────────────────────
-    applyHandAlternation(notes);
 
     return notes;
   }
@@ -171,61 +152,7 @@ function injectDoubledNotes(notes: Note[], beatInterval: number): void {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Step 3 — Hand-alternation shuffle
-// ─────────────────────────────────────────────────────────────────────────────
-
-/**
- * Detects three consecutive same-hand notes and swaps the middle one with
- * the next available opposite-hand note, preserving timing.
- *
- * The swap only occurs when it improves alternation (i.e. the swap partner
- * is on the opposite hand and is not also creating a triple).
- */
-function applyHandAlternation(notes: Note[]): void {
-  if (notes.length < 3) return;
-
-  for (let i = 0; i < notes.length - 2; i++) {
-    const hand0 = handOf(notes[i].key);
-    const hand1 = handOf(notes[i + 1].key);
-    const hand2 = handOf(notes[i + 2].key);
-
-    // Triple same hand detected (e.g. left-left-left or right-right-right).
-    if (hand0 === hand1 && hand1 === hand2) {
-      // Find the next note on the opposite hand to swap with.
-      const oppositeHand = hand0 === 'left' ? 'right' : 'left';
-      const swapIdx = findOppositeHandNote(notes, i + 3, oppositeHand);
-
-      if (swapIdx !== -1) {
-        // Swap notes[i+1] with notes[swapIdx] — but keep times fixed.
-        // We only swap the *keys*; times and windows stay in place so the
-        // overall rhythm is preserved.
-        const tmpKey = notes[i + 1].key;
-        notes[i + 1].key = notes[swapIdx].key;
-        notes[swapIdx].key = tmpKey;
-      }
-    }
-  }
-}
-
-/**
- * Finds the index of the next note (starting at `from`) whose key belongs to
- * the specified hand. Returns -1 if none found.
- */
-function findOppositeHandNote(
-  notes: Note[],
-  from: number,
-  hand: 'left' | 'right',
-): number {
-  for (let i = from; i < notes.length; i++) {
-    if (handOf(notes[i].key) === hand) {
-      return i;
-    }
-  }
-  return -1;
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
 // Exports
 // ─────────────────────────────────────────────────────────────────────────────
 
-export { effectiveBpm, handOf, TIMING_WINDOWS };
+export { effectiveBpm, TIMING_WINDOWS };

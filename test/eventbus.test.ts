@@ -220,9 +220,10 @@ console.log('\n[5] BeatClockJudge — Note staleness');
   };
   
   const judge = new BeatClockJudge(beatMap, { difficulty: 'easy', windows }, hooks);
-  
-  // Tick past the note's window (1000 + 150 = 1150ms)
-  judge.tick(1200);
+
+  // Set start time 1200ms in the past so getSongTime() returns ~1200ms
+  judge.setStartTime(performance.now() - 1200);
+  judge.tick();
   assert(staleFired, 'onNoteStale fired when note passes window');
   assertEqual(judge.state.cursor, 1, 'Cursor advanced past stale note');
 }

@@ -64,6 +64,7 @@ export class BeatClockJudge {
   private _maxCombo = 0;
   private _cursor = 0;
   private _lastThreshold = 0;
+  private _startTime: number = 0;  // Song start time (performance.now())
 
   // Subscribers to judgment events (for feedback layer, logging, etc.)
   private readonly judgmentListeners = new Set<JudgmentListener>();
@@ -156,6 +157,16 @@ export class BeatClockJudge {
     this.unsubChar = null;
   }
 
+  /** Set the song start time (must be called before judging begins) */
+  setStartTime(time: number): void {
+    this._startTime = time;
+  }
+
+  /** Get the current song time relative to start */
+  getSongTime(): number {
+    return performance.now() - this._startTime;
+  }
+
   // ---- State accessors ----------------------------------------------------
 
   get state(): JudgeState {
@@ -201,12 +212,14 @@ export class BeatClockJudge {
     }
 
     if (evt.char !== expected.key) {
-      // WRONG KEY — silently ignore. No judgment, no combo break, no cursor advance.
+      // WRONG KEY — emit onWrongKey hook for feedback, but don't advance cursor or break combo
+      this.hooks.onWrongKey?.(evt.char, expected.key);
       return;
     }
 
-    // Correct key — compute timing delta.
-    const delta = evt.raw.timestamp - expected.time;
+    // Correct key — compute timing delta relative to song start
+    const songTime = evt.raw.timestamp - this._startTime;
+    const delta = songTime - expected.time;
     const absDelta = Math.abs(delta);
 
     let judgment: Judgment;
@@ -298,11 +311,12 @@ export class BeatClockJudge {
    *
    * @param currentSongTime  Current song time in ms (same clock as note.time)
    */
-  tick(currentSongTime: number): void {
+  tick(_currentSongTime: number): void {
+    const songTime = this.getSongTime();
     while (this._cursor < this.beatMap.length) {
       const note = this.beatMap.notes[this._cursor];
       // A note is stale if current time has passed note.time + good window.
-      if (currentSongTime > note.time + this.windows.good) {
+      if (songTime > note.time + this.windows.good) {
         this._cursor++;
         const previousCombo = this._combo;
         this._combo = 0;

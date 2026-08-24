@@ -214,9 +214,8 @@ export class FeedbackLayer implements FeedbackLayerInterface {
   }
 
   renderStale(note: Note): void {
-    if (!this.nudgeEnabled) return;
-    // Start nudge hint on the expected key
-    this.nudgeKeys.set(note.key, { note, startTime: performance.now() });
+    // Don't add nudge for stale notes — the cursor has already advanced past them.
+    // Nudges are only for the current expected key (handled in updateNudges).
   }
 
   renderCombo(count: number, _multiplier: number): void {

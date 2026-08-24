@@ -450,6 +450,9 @@
         onStreakThreshold: (count) => {
           debugPlugin.onStreakThreshold(count);
         },
+        onWrongKey: (key, expectedKey) => {
+          feedbackLayer.renderMiss(key, expectedKey);
+        },
       });
 
       // Wire: RawBus → NormalizedBus → BeatClockJudge
@@ -460,9 +463,10 @@
       // Connect judge to feedback layer for expected-key indicator
       feedbackLayer.setJudge(judge);
 
-      // Start game
+      // Start game — set start time AFTER bus is listening
       gameActive = true;
       startTime = performance.now();
+      judge.setStartTime(startTime);
       debugPlugin.onGameStart({
         title: contentInput.value,
         artist: 'Typejoy',
@@ -487,8 +491,7 @@
       // Tick loop for stale note detection
       tickHandle = setInterval(() => {
         if (!gameActive) return;
-        const elapsed = performance.now() - startTime;
-        judge.tick(elapsed);
+        judge.tick();
 
         if (judge.state.isComplete) {
           endGame();

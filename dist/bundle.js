@@ -268,6 +268,8 @@ var BeatClockJudge = class {
   _maxCombo = 0;
   _cursor = 0;
   _lastThreshold = 0;
+  _startTime = 0;
+  // Song start time (performance.now())
   // Subscribers to judgment events (for feedback layer, logging, etc.)
   judgmentListeners = /* @__PURE__ */ new Set();
   // The normalized bus subscription handle (for start/stop)
@@ -346,6 +348,14 @@ var BeatClockJudge = class {
     this.unsubChar?.();
     this.unsubChar = null;
   }
+  /** Set the song start time (must be called before judging begins) */
+  setStartTime(time) {
+    this._startTime = time;
+  }
+  /** Get the current song time relative to start */
+  getSongTime() {
+    return performance.now() - this._startTime;
+  }
   // ---- State accessors ----------------------------------------------------
   get state() {
     return {
@@ -383,9 +393,11 @@ var BeatClockJudge = class {
       return;
     }
     if (evt.char !== expected.key) {
+      this.hooks.onWrongKey?.(evt.char, expected.key);
       return;
     }
-    const delta = evt.raw.timestamp - expected.time;
+    const songTime = evt.raw.timestamp - this._startTime;
+    const delta = songTime - expected.time;
     const absDelta = Math.abs(delta);
     let judgment;
     if (absDelta <= this.windows.perfect) {
@@ -442,10 +454,11 @@ var BeatClockJudge = class {
    *
    * @param currentSongTime  Current song time in ms (same clock as note.time)
    */
-  tick(currentSongTime) {
+  tick(_currentSongTime) {
+    const songTime = this.getSongTime();
     while (this._cursor < this.beatMap.length) {
       const note = this.beatMap.notes[this._cursor];
-      if (currentSongTime > note.time + this.windows.good) {
+      if (songTime > note.time + this.windows.good) {
         this._cursor++;
         const previousCombo = this._combo;
         this._combo = 0;
@@ -526,28 +539,7 @@ var TIMING_WINDOWS2 = {
   hard: 40,
   expert: 25
 };
-var LEFT_HAND_KEYS = /* @__PURE__ */ new Set([
-  "q",
-  "w",
-  "e",
-  "r",
-  "t",
-  "a",
-  "s",
-  "d",
-  "f",
-  "g",
-  "z",
-  "x",
-  "c",
-  "v",
-  "b"
-]);
 var COMMON_LETTERS = /* @__PURE__ */ new Set(["e", "t", "a", "o", "i", "n", "s", "r"]);
-function handOf(key) {
-  if (LEFT_HAND_KEYS.has(key)) return "left";
-  return "right";
-}
 function effectiveBpm(options) {
   if (options.wordsPerMinute != null && options.wordsPerMinute > 0) {
     return options.wordsPerMinute * 5;
@@ -582,7 +574,6 @@ var BeatMapGenerator = class {
     if (options.difficulty === "hard") {
       injectDoubledNotes(notes, beatInterval);
     }
-    applyHandAlternation(notes);
     return notes;
   }
 };
@@ -614,31 +605,6 @@ function injectDoubledNotes(notes, beatInterval) {
       i++;
     }
   }
-}
-function applyHandAlternation(notes) {
-  if (notes.length < 3) return;
-  for (let i = 0; i < notes.length - 2; i++) {
-    const hand0 = handOf(notes[i].key);
-    const hand1 = handOf(notes[i + 1].key);
-    const hand2 = handOf(notes[i + 2].key);
-    if (hand0 === hand1 && hand1 === hand2) {
-      const oppositeHand = hand0 === "left" ? "right" : "left";
-      const swapIdx = findOppositeHandNote(notes, i + 3, oppositeHand);
-      if (swapIdx !== -1) {
-        const tmpKey = notes[i + 1].key;
-        notes[i + 1].key = notes[swapIdx].key;
-        notes[swapIdx].key = tmpKey;
-      }
-    }
-  }
-}
-function findOppositeHandNote(notes, from, hand) {
-  for (let i = from; i < notes.length; i++) {
-    if (handOf(notes[i].key) === hand) {
-      return i;
-    }
-  }
-  return -1;
 }
 
 // src/keyboard-layout.ts
@@ -1651,8 +1617,6 @@ var FeedbackLayer = class {
     }, 200);
   }
   renderStale(note) {
-    if (!this.nudgeEnabled) return;
-    this.nudgeKeys.set(note.key, { note, startTime: performance.now() });
   }
   renderCombo(count, _multiplier) {
     if (count > this.maxComboReached) {
