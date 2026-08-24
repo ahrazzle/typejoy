@@ -64,8 +64,7 @@ export class SVGKeyboardRenderer {
     const style = document.createElementNS(SVG_NS, 'style');
     style.textContent = `
       .typejoy-key {
-        transition: transform 60ms cubic-bezier(0.2, 0.8, 0.3, 1.2),
-                    filter 100ms ease-out,
+        transition: filter 100ms ease-out,
                     opacity 150ms ease;
         transform-box: fill-box;
         transform-origin: center;
@@ -80,15 +79,15 @@ export class SVGKeyboardRenderer {
       .typejoy-keycap-bg {
         transition: opacity 100ms ease-out;
       }
-      .typejoy-key-depressed {
-        transform: translateY(2px) scale(0.96);
-        filter: brightness(0.85);
-      }
       .typejoy-key-shake {
         animation: typejoy-shake 200ms ease-out;
       }
       .typejoy-key-pulse {
         animation: typejoy-beat-pulse 200ms ease-out;
+      }
+      /* Spring-based depression with overshoot — like a mechanical switch */
+      .typejoy-key-spring {
+        animation: typejoy-spring 350ms cubic-bezier(0.34, 1.56, 0.64, 1);
       }
       @keyframes typejoy-shake {
         0%, 100% { transform: translateX(0); }
@@ -101,6 +100,14 @@ export class SVGKeyboardRenderer {
         0% { filter: brightness(1); }
         50% { filter: brightness(1.3); }
         100% { filter: brightness(1); }
+      }
+      /* Key depression: goes down past target, bounces back — spring overshoot */
+      @keyframes typejoy-spring {
+        0% { transform: translateY(0) scale(1); filter: brightness(1); }
+        30% { transform: translateY(4px) scale(0.95); filter: brightness(0.85); }
+        60% { transform: translateY(2px) scale(0.97); filter: brightness(0.9); }
+        80% { transform: translateY(3px) scale(0.96); filter: brightness(0.88); }
+        100% { transform: translateY(2px) scale(0.96); filter: brightness(0.88); }
       }
     `;
     this.svg.appendChild(style);
@@ -218,16 +225,20 @@ export class SVGKeyboardRenderer {
     return this.renderedKeys.get(keyId)?.element;
   }
 
-  /** Depress a key (visual feedback for press) */
-  depressKey(keyId: string, duration: number = 80): void {
+  /** Depress a key with spring-physics feedback (overshoot + bounce) */
+  depressKey(keyId: string): void {
     const rendered = this.renderedKeys.get(keyId);
     if (!rendered) return;
-    rendered.element.classList.add('typejoy-key-depressed');
-    this.depressedKeys.add(keyId);
+
+    // Remove the class first to allow re-triggering
+    rendered.element.classList.remove('typejoy-key-spring');
+    // Force reflow
+    void rendered.element.getBoundingClientRect();
+    rendered.element.classList.add('typejoy-key-spring');
+
     window.setTimeout(() => {
-      rendered.element.classList.remove('typejoy-key-depressed');
-      this.depressedKeys.delete(keyId);
-    }, duration);
+      rendered.element.classList.remove('typejoy-key-spring');
+    }, 350);
   }
 
   /** Pulse a key (beat sync) */

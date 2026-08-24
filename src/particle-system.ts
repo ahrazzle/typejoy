@@ -1,12 +1,17 @@
 /**
  * Typejoy Framework — Canvas Particle System
- * 
- * Manages particle effects, screen shake, RGB glow, and screen-edge glow
- * on a stacked canvas overlay. All effects are rendered with `pointer-events: none`
- * so keystrokes always reach the input layer.
+ *
+ * Manages particle effects, screen shake, RGB glow, screen-edge glow,
+ * RIPPLE effects, and SPECULAR HIGHLIGHT sweeps on a stacked canvas overlay.
+ * All effects are rendered with `pointer-events: none` so keystrokes reach the input layer.
+ *
+ * Satisfying animations inspired by ThreeUI:
+ * - Spring-based key depression (overshoot + bounce)
+ * - Ripple emanation spreading across the keyboard surface
+ * - Specular highlight sweep on perfect hits
  */
 
-import { ThemeDescriptor, ParticleStyle, Judgment } from './types';
+import { ThemeDescriptor, ParticleStyle, Judgment } from './types.js';
 
 interface Particle {
   x: number;
@@ -38,12 +43,34 @@ interface EdgeGlow {
   startTime: number;
 }
 
+/** A ripple expanding outward across the keyboard surface */
+interface Ripple {
+  x: number;
+  y: number;
+  startTime: number;
+  duration: number;
+  maxRadius: number;
+  color: string;
+  opacity: number;
+  judgment: Judgment | 'wrong';
+}
+
+/** A specular highlight that sweeps across the keyboard */
+interface SpecularSweep {
+  startTime: number;
+  duration: number;
+  color: string;
+  angle: number;
+}
+
 export class ParticleSystem {
   private canvas: HTMLCanvasElement;
   private ctx: CanvasRenderingContext2D;
   private particles: Particle[] = [];
   private shoves: ScreenShake[] = [];
   private edgeGlows: EdgeGlow[] = [];
+  private ripples: Ripple[] = [];
+  private specularSweeps: SpecularSweep[] = [];
   private animationId: number | null = null;
   private theme: ThemeDescriptor | null = null;
   private reducedMotion: boolean = false;
@@ -82,6 +109,77 @@ export class ParticleSystem {
     this.canvas.width = width * dpr;
     this.canvas.height = height * dpr;
     this.ctx.scale(dpr, dpr);
+  }
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // Ripple Effects — The "dopamine hit" emanating across the keyboard
+  // ─────────────────────────────────────────────────────────────────────────
+
+  /**
+   * Emit a ripple that expands outward from a keypress position.
+   * Larger and more vivid for perfect hits, smaller for good hits.
+   */
+  emitRipple(x: number, y: number, judgment: Judgment | 'wrong'): void {
+    if (this.reducedMotion && judgment !== 'perfect') return;
+
+    const colors: Record<string, string> = {
+      perfect: '#00e5ff',
+      great: '#76ff03',
+      good: '#ffea00',
+      wrong: '#ff1744',
+    };
+    const sizes: Record<string, number> = {
+      perfect: 180,
+      great: 120,
+      good: 80,
+      wrong: 50,
+    };
+    const durations: Record<string, number> = {
+      perfect: 600,
+      great: 500,
+      good: 400,
+      wrong: 300,
+    };
+
+    this.ripples.push({
+      x,
+      y,
+      startTime: performance.now(),
+      duration: durations[judgment] || 400,
+      maxRadius: sizes[judgment] || 80,
+      color: colors[judgment] || '#ffffff',
+      opacity: judgment === 'perfect' ? 0.6 : 0.35,
+      judgment,
+    });
+
+    // Perfect hits get a second, larger ripple for extra satisfaction
+    if (judgment === 'perfect') {
+      this.ripples.push({
+        x,
+        y,
+        startTime: performance.now() + 80,
+        duration: 700,
+        maxRadius: 250,
+        color: '#ffffff',
+        opacity: 0.2,
+        judgment,
+      });
+    }
+  }
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // Specular Highlight Sweep — Light sweeping across the surface
+  // ─────────────────────────────────────────────────────────────────────────
+
+  /** Trigger a specular highlight sweep — only on perfect hits */
+  emitSpecularSweep(): void {
+    if (this.reducedMotion) return;
+    this.specularSweeps.push({
+      startTime: performance.now(),
+      duration: 400,
+      color: '#ffffff',
+      angle: Math.random() * Math.PI * 2,
+    });
   }
 
   /** Emit a particle burst at a position */
@@ -229,7 +327,7 @@ export class ParticleSystem {
     }
   }
 
-  /** Update particles */
+  /** Update all effects */
   private update(dt: number): void {
     for (let i = this.particles.length - 1; i >= 0; i--) {
       const p = this.particles[i];
@@ -258,6 +356,9 @@ export class ParticleSystem {
     // Render edge glows
     this.renderEdgeGlows(ctx);
 
+    // Render ripples (behind particles)
+    this.renderRipples(ctx);
+
     // Render particles
     for (const p of this.particles) {
       ctx.save();
@@ -283,7 +384,87 @@ export class ParticleSystem {
       ctx.restore();
     }
 
+    // Render specular sweeps (in front of everything)
+    this.renderSpecularSweeps(ctx);
+
     ctx.restore();
+  }
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // Ripple Rendering — Expanding concentric circles with glow
+  // ─────────────────────────────────────────────────────────────────────────
+
+  private renderRipples(ctx: CanvasRenderingContext2D): void {
+    const now = performance.now();
+
+    for (let i = this.ripples.length - 1; i >= 0; i--) {
+      const r = this.ripples[i];
+      const elapsed = now - r.startTime;
+      if (elapsed > r.duration) {
+        this.ripples.splice(i, 1);
+        continue;
+      }
+
+      const progress = elapsed / r.duration;
+      const radius = r.maxRadius * this.easeOutQuad(progress);
+      const alpha = r.opacity * (1 - progress);
+
+      // Multiple concentric rings for richer effect
+      for (let ring = 0; ring < 3; ring++) {
+        const ringProgress = Math.min(1, progress + ring * 0.1);
+        const ringRadius = r.maxRadius * this.easeOutQuad(Math.min(1, ringProgress));
+        const ringAlpha = alpha * (1 - ring * 0.3);
+
+        ctx.beginPath();
+        ctx.arc(r.x, r.y, ringRadius, 0, Math.PI * 2);
+        ctx.strokeStyle = this.hexToRgba(r.color, ringAlpha);
+        ctx.lineWidth = 2 - ring * 0.5;
+        ctx.stroke();
+      }
+
+      // Inner glow fill
+      const gradient = ctx.createRadialGradient(r.x, r.y, 0, r.x, r.y, radius);
+      gradient.addColorStop(0, this.hexToRgba(r.color, alpha * 0.3));
+      gradient.addColorStop(1, this.hexToRgba(r.color, 0));
+      ctx.fillStyle = gradient;
+      ctx.beginPath();
+      ctx.arc(r.x, r.y, radius, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  }
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // Specular Sweep Rendering — Brief "shininess" across the surface
+  // ─────────────────────────────────────────────────────────────────────────
+
+  private renderSpecularSweeps(ctx: CanvasRenderingContext2D): void {
+    const now = performance.now();
+
+    for (let i = this.specularSweeps.length - 1; i >= 0; i--) {
+      const s = this.specularSweeps[i];
+      const elapsed = now - s.startTime;
+      if (elapsed > s.duration) {
+        this.specularSweeps.splice(i, 1);
+        continue;
+      }
+
+      const progress = elapsed / s.duration;
+      const alpha = 0.4 * (1 - progress);
+
+      // A streak of light that sweeps diagonally
+      const streakWidth = this.width * 0.3;
+      const startX = -this.width + (this.width * 2.5 * progress);
+      const gradient = ctx.createLinearGradient(
+        startX, 0,
+        startX + streakWidth, this.height
+      );
+      gradient.addColorStop(0, 'transparent');
+      gradient.addColorStop(0.5, `rgba(255,255,255,${alpha})`);
+      gradient.addColorStop(1, 'transparent');
+
+      ctx.fillStyle = gradient;
+      ctx.fillRect(0, 0, this.width, this.height);
+    }
   }
 
   private renderSpark(ctx: CanvasRenderingContext2D, p: Particle): void {
@@ -376,10 +557,16 @@ export class ParticleSystem {
     return `rgba(${r}, ${g}, ${b}, ${alpha})`;
   }
 
+  private easeOutQuad(t: number): number {
+    return t * (2 - t);
+  }
+
   /** Clear all particles and effects */
   clear(): void {
     this.particles = [];
     this.shoves = [];
     this.edgeGlows = [];
+    this.ripples = [];
+    this.specularSweeps = [];
   }
 }

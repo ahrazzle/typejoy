@@ -795,8 +795,7 @@ var SVGKeyboardRenderer = class {
     const style = document.createElementNS(SVG_NS, "style");
     style.textContent = `
       .typejoy-key {
-        transition: transform 60ms cubic-bezier(0.2, 0.8, 0.3, 1.2),
-                    filter 100ms ease-out,
+        transition: filter 100ms ease-out,
                     opacity 150ms ease;
         transform-box: fill-box;
         transform-origin: center;
@@ -811,15 +810,15 @@ var SVGKeyboardRenderer = class {
       .typejoy-keycap-bg {
         transition: opacity 100ms ease-out;
       }
-      .typejoy-key-depressed {
-        transform: translateY(2px) scale(0.96);
-        filter: brightness(0.85);
-      }
       .typejoy-key-shake {
         animation: typejoy-shake 200ms ease-out;
       }
       .typejoy-key-pulse {
         animation: typejoy-beat-pulse 200ms ease-out;
+      }
+      /* Spring-based depression with overshoot \u2014 like a mechanical switch */
+      .typejoy-key-spring {
+        animation: typejoy-spring 350ms cubic-bezier(0.34, 1.56, 0.64, 1);
       }
       @keyframes typejoy-shake {
         0%, 100% { transform: translateX(0); }
@@ -832,6 +831,14 @@ var SVGKeyboardRenderer = class {
         0% { filter: brightness(1); }
         50% { filter: brightness(1.3); }
         100% { filter: brightness(1); }
+      }
+      /* Key depression: goes down past target, bounces back \u2014 spring overshoot */
+      @keyframes typejoy-spring {
+        0% { transform: translateY(0) scale(1); filter: brightness(1); }
+        30% { transform: translateY(4px) scale(0.95); filter: brightness(0.85); }
+        60% { transform: translateY(2px) scale(0.97); filter: brightness(0.9); }
+        80% { transform: translateY(3px) scale(0.96); filter: brightness(0.88); }
+        100% { transform: translateY(2px) scale(0.96); filter: brightness(0.88); }
       }
     `;
     this.svg.appendChild(style);
@@ -927,16 +934,16 @@ var SVGKeyboardRenderer = class {
   getKeyElement(keyId) {
     return this.renderedKeys.get(keyId)?.element;
   }
-  /** Depress a key (visual feedback for press) */
-  depressKey(keyId, duration = 80) {
+  /** Depress a key with spring-physics feedback (overshoot + bounce) */
+  depressKey(keyId) {
     const rendered = this.renderedKeys.get(keyId);
     if (!rendered) return;
-    rendered.element.classList.add("typejoy-key-depressed");
-    this.depressedKeys.add(keyId);
+    rendered.element.classList.remove("typejoy-key-spring");
+    void rendered.element.getBoundingClientRect();
+    rendered.element.classList.add("typejoy-key-spring");
     window.setTimeout(() => {
-      rendered.element.classList.remove("typejoy-key-depressed");
-      this.depressedKeys.delete(keyId);
-    }, duration);
+      rendered.element.classList.remove("typejoy-key-spring");
+    }, 350);
   }
   /** Pulse a key (beat sync) */
   pulseKey(keyId, bpm) {
@@ -1052,6 +1059,8 @@ var ParticleSystem = class {
   particles = [];
   shoves = [];
   edgeGlows = [];
+  ripples = [];
+  specularSweeps = [];
   animationId = null;
   theme = null;
   reducedMotion = false;
@@ -1086,6 +1095,69 @@ var ParticleSystem = class {
     this.canvas.width = width * dpr;
     this.canvas.height = height * dpr;
     this.ctx.scale(dpr, dpr);
+  }
+  // ─────────────────────────────────────────────────────────────────────────
+  // Ripple Effects — The "dopamine hit" emanating across the keyboard
+  // ─────────────────────────────────────────────────────────────────────────
+  /**
+   * Emit a ripple that expands outward from a keypress position.
+   * Larger and more vivid for perfect hits, smaller for good hits.
+   */
+  emitRipple(x, y, judgment) {
+    if (this.reducedMotion && judgment !== "perfect") return;
+    const colors = {
+      perfect: "#00e5ff",
+      great: "#76ff03",
+      good: "#ffea00",
+      wrong: "#ff1744"
+    };
+    const sizes = {
+      perfect: 180,
+      great: 120,
+      good: 80,
+      wrong: 50
+    };
+    const durations = {
+      perfect: 600,
+      great: 500,
+      good: 400,
+      wrong: 300
+    };
+    this.ripples.push({
+      x,
+      y,
+      startTime: performance.now(),
+      duration: durations[judgment] || 400,
+      maxRadius: sizes[judgment] || 80,
+      color: colors[judgment] || "#ffffff",
+      opacity: judgment === "perfect" ? 0.6 : 0.35,
+      judgment
+    });
+    if (judgment === "perfect") {
+      this.ripples.push({
+        x,
+        y,
+        startTime: performance.now() + 80,
+        duration: 700,
+        maxRadius: 250,
+        color: "#ffffff",
+        opacity: 0.2,
+        judgment
+      });
+    }
+  }
+  // ─────────────────────────────────────────────────────────────────────────
+  // Specular Highlight Sweep — Light sweeping across the surface
+  // ─────────────────────────────────────────────────────────────────────────
+  /** Trigger a specular highlight sweep — only on perfect hits */
+  emitSpecularSweep() {
+    if (this.reducedMotion) return;
+    this.specularSweeps.push({
+      startTime: performance.now(),
+      duration: 400,
+      color: "#ffffff",
+      angle: Math.random() * Math.PI * 2
+    });
   }
   /** Emit a particle burst at a position */
   emitBurst(x, y, judgment, style, density = 1) {
@@ -1221,7 +1293,7 @@ var ParticleSystem = class {
       this.animationId = null;
     }
   }
-  /** Update particles */
+  /** Update all effects */
   update(dt) {
     for (let i = this.particles.length - 1; i >= 0; i--) {
       const p = this.particles[i];
@@ -1244,6 +1316,7 @@ var ParticleSystem = class {
     ctx.save();
     ctx.translate(shake.x, shake.y);
     this.renderEdgeGlows(ctx);
+    this.renderRipples(ctx);
     for (const p of this.particles) {
       ctx.save();
       ctx.globalAlpha = p.opacity;
@@ -1266,7 +1339,71 @@ var ParticleSystem = class {
       }
       ctx.restore();
     }
+    this.renderSpecularSweeps(ctx);
     ctx.restore();
+  }
+  // ─────────────────────────────────────────────────────────────────────────
+  // Ripple Rendering — Expanding concentric circles with glow
+  // ─────────────────────────────────────────────────────────────────────────
+  renderRipples(ctx) {
+    const now = performance.now();
+    for (let i = this.ripples.length - 1; i >= 0; i--) {
+      const r = this.ripples[i];
+      const elapsed = now - r.startTime;
+      if (elapsed > r.duration) {
+        this.ripples.splice(i, 1);
+        continue;
+      }
+      const progress = elapsed / r.duration;
+      const radius = r.maxRadius * this.easeOutQuad(progress);
+      const alpha = r.opacity * (1 - progress);
+      for (let ring = 0; ring < 3; ring++) {
+        const ringProgress = Math.min(1, progress + ring * 0.1);
+        const ringRadius = r.maxRadius * this.easeOutQuad(Math.min(1, ringProgress));
+        const ringAlpha = alpha * (1 - ring * 0.3);
+        ctx.beginPath();
+        ctx.arc(r.x, r.y, ringRadius, 0, Math.PI * 2);
+        ctx.strokeStyle = this.hexToRgba(r.color, ringAlpha);
+        ctx.lineWidth = 2 - ring * 0.5;
+        ctx.stroke();
+      }
+      const gradient = ctx.createRadialGradient(r.x, r.y, 0, r.x, r.y, radius);
+      gradient.addColorStop(0, this.hexToRgba(r.color, alpha * 0.3));
+      gradient.addColorStop(1, this.hexToRgba(r.color, 0));
+      ctx.fillStyle = gradient;
+      ctx.beginPath();
+      ctx.arc(r.x, r.y, radius, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  }
+  // ─────────────────────────────────────────────────────────────────────────
+  // Specular Sweep Rendering — Brief "shininess" across the surface
+  // ─────────────────────────────────────────────────────────────────────────
+  renderSpecularSweeps(ctx) {
+    const now = performance.now();
+    for (let i = this.specularSweeps.length - 1; i >= 0; i--) {
+      const s = this.specularSweeps[i];
+      const elapsed = now - s.startTime;
+      if (elapsed > s.duration) {
+        this.specularSweeps.splice(i, 1);
+        continue;
+      }
+      const progress = elapsed / s.duration;
+      const alpha = 0.4 * (1 - progress);
+      const streakWidth = this.width * 0.3;
+      const startX = -this.width + this.width * 2.5 * progress;
+      const gradient = ctx.createLinearGradient(
+        startX,
+        0,
+        startX + streakWidth,
+        this.height
+      );
+      gradient.addColorStop(0, "transparent");
+      gradient.addColorStop(0.5, `rgba(255,255,255,${alpha})`);
+      gradient.addColorStop(1, "transparent");
+      ctx.fillStyle = gradient;
+      ctx.fillRect(0, 0, this.width, this.height);
+    }
   }
   renderSpark(ctx, p) {
     ctx.beginPath();
@@ -1357,11 +1494,16 @@ var ParticleSystem = class {
     const b = parseInt(hex.slice(5, 7), 16);
     return `rgba(${r}, ${g}, ${b}, ${alpha})`;
   }
+  easeOutQuad(t) {
+    return t * (2 - t);
+  }
   /** Clear all particles and effects */
   clear() {
     this.particles = [];
     this.shoves = [];
     this.edgeGlows = [];
+    this.ripples = [];
+    this.specularSweeps = [];
   }
 };
 
@@ -1463,37 +1605,27 @@ var FeedbackLayer = class {
   renderHit(judgment, key, _delta) {
     const normalizedKey = normalizeKey2(key);
     const keyBounds = this.getKeyScreenBounds(normalizedKey);
-    this.keyboard.depressKey(normalizedKey, judgment === "perfect" ? 100 : 70);
+    const cx = keyBounds.x + keyBounds.width / 2;
+    const cy = keyBounds.y + keyBounds.height / 2;
+    this.keyboard.depressKey(normalizedKey);
+    this.particles.emitRipple(cx, cy, judgment);
     switch (judgment) {
       case "perfect":
         this.keyboard.setKeyHighlight(normalizedKey, this.theme.colors.primary, 0.7);
-        this.particles.emitBurst(
-          keyBounds.x + keyBounds.width / 2,
-          keyBounds.y + keyBounds.height / 2,
-          "perfect",
-          this.theme.particleStyle,
-          this.theme.particleDensity
-        );
+        this.particles.emitBurst(cx, cy, "perfect", this.theme.particleStyle, this.theme.particleDensity);
+        this.particles.emitBurst(cx, cy, "perfect", "confetti", this.theme.particleDensity * 0.5);
         this.particles.addEdgeGlow(this.theme.colors.primary, this.theme.intensity, 300);
         this.particles.addShake(this.theme.shakeIntensity * 0.5, 150);
+        this.particles.emitSpecularSweep();
         break;
       case "great":
         this.keyboard.setKeyHighlight(normalizedKey, this.theme.colors.secondary, 0.5);
-        this.particles.emitBurst(
-          keyBounds.x + keyBounds.width / 2,
-          keyBounds.y + keyBounds.height / 2,
-          "great",
-          this.theme.particleStyle,
-          this.theme.particleDensity * 0.7
-        );
+        this.particles.emitBurst(cx, cy, "great", this.theme.particleStyle, this.theme.particleDensity * 0.7);
         this.particles.addEdgeGlow(this.theme.colors.secondary, this.theme.intensity * 0.5, 200);
         break;
       case "good":
         this.keyboard.setKeyHighlight(normalizedKey, this.theme.colors.tertiary, 0.4);
-        this.particles.emitMutedFlash(
-          keyBounds.x + keyBounds.width / 2,
-          keyBounds.y + keyBounds.height / 2
-        );
+        this.particles.emitMutedFlash(cx, cy);
         break;
     }
     window.setTimeout(() => {
@@ -1508,6 +1640,11 @@ var FeedbackLayer = class {
     this.particles.emitWrongKeyBurst(
       keyBounds.x + keyBounds.width / 2,
       keyBounds.y + keyBounds.height / 2
+    );
+    this.particles.emitRipple(
+      keyBounds.x + keyBounds.width / 2,
+      keyBounds.y + keyBounds.height / 2,
+      "wrong"
     );
     window.setTimeout(() => {
       this.keyboard.clearKeyHighlight(normalizedKey);

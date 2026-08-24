@@ -148,46 +148,38 @@ export class FeedbackLayer implements FeedbackLayerInterface {
   renderHit(judgment: Judgment, key: string, _delta: number): void {
     const normalizedKey = normalizeKey(key);
     const keyBounds = this.getKeyScreenBounds(normalizedKey);
+    const cx = keyBounds.x + keyBounds.width / 2;
+    const cy = keyBounds.y + keyBounds.height / 2;
 
-    // Depress the key
-    this.keyboard.depressKey(normalizedKey, judgment === 'perfect' ? 100 : 70);
+    // Depress the key with spring physics
+    this.keyboard.depressKey(normalizedKey);
+
+    // Emit ripple emanating across the keyboard surface
+    this.particles.emitRipple(cx, cy, judgment);
 
     // Apply theme-based visual feedback per channel
     switch (judgment) {
       case 'perfect':
-        // Full particle burst + key depression + screen-edge glow
+        // Full particle burst + key depression + screen-edge glow + specular sweep + confetti
         this.keyboard.setKeyHighlight(normalizedKey, this.theme.colors.primary, 0.7);
-        this.particles.emitBurst(
-          keyBounds.x + keyBounds.width / 2,
-          keyBounds.y + keyBounds.height / 2,
-          'perfect',
-          this.theme.particleStyle,
-          this.theme.particleDensity
-        );
+        this.particles.emitBurst(cx, cy, 'perfect', this.theme.particleStyle, this.theme.particleDensity);
+        this.particles.emitBurst(cx, cy, 'perfect', 'confetti', this.theme.particleDensity * 0.5);
         this.particles.addEdgeGlow(this.theme.colors.primary, this.theme.intensity, 300);
         this.particles.addShake(this.theme.shakeIntensity * 0.5, 150);
+        this.particles.emitSpecularSweep();
         break;
 
       case 'great':
         // Moderate burst + key depression
         this.keyboard.setKeyHighlight(normalizedKey, this.theme.colors.secondary, 0.5);
-        this.particles.emitBurst(
-          keyBounds.x + keyBounds.width / 2,
-          keyBounds.y + keyBounds.height / 2,
-          'great',
-          this.theme.particleStyle,
-          this.theme.particleDensity * 0.7
-        );
+        this.particles.emitBurst(cx, cy, 'great', this.theme.particleStyle, this.theme.particleDensity * 0.7);
         this.particles.addEdgeGlow(this.theme.colors.secondary, this.theme.intensity * 0.5, 200);
         break;
 
       case 'good':
         // Muted flash + small key depression
         this.keyboard.setKeyHighlight(normalizedKey, this.theme.colors.tertiary, 0.4);
-        this.particles.emitMutedFlash(
-          keyBounds.x + keyBounds.width / 2,
-          keyBounds.y + keyBounds.height / 2
-        );
+        this.particles.emitMutedFlash(cx, cy);
         break;
     }
 
@@ -201,12 +193,17 @@ export class FeedbackLayer implements FeedbackLayerInterface {
     const normalizedKey = normalizeKey(key);
     const keyBounds = this.getKeyScreenBounds(normalizedKey);
 
-    // Wrong key: muted red flash + small shake (deliberately underwhelming, not punishing)
+    // Wrong key: muted red flash + small shake + tiny ripple (deliberately underwhelming)
     this.keyboard.shakeKey(normalizedKey);
     this.keyboard.setKeyHighlight(normalizedKey, this.theme.colors.danger, 0.3);
     this.particles.emitWrongKeyBurst(
       keyBounds.x + keyBounds.width / 2,
       keyBounds.y + keyBounds.height / 2
+    );
+    this.particles.emitRipple(
+      keyBounds.x + keyBounds.width / 2,
+      keyBounds.y + keyBounds.height / 2,
+      'wrong'
     );
     // No screen shake for wrong keys — keep it gentle
     // No edge glow for wrong keys — not punishing
