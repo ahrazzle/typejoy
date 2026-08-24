@@ -320,4 +320,8 @@ export interface FeedbackLayer {
   stop(): void;
   /** Connect the judge for expected-key indicator and approach rings */
   setJudge(judge: { getCurrentNote: () => BeatNote | undefined; getNextNotes: (count: number) => Array<{ note: BeatNote; timeUntilHit: number }>; getSongTime: () => number; beatMap: { notes: BeatNote[] } }): void;
+  /** Set approach ring preempt time (ms before hit when rings appear) */
+  setPreemptTime(ms: number): void;
+  /** Set how many upcoming notes to show approach rings for */
+  setNoteCount(count: number): void;
 }
