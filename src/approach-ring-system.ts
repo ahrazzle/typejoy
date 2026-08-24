@@ -1,16 +1,17 @@
 /**
- * Typejoy Framework — Approach Ring System
+ * Typejoy Framework — Multi-Note Approach Ring System
  *
- * osu!/Stepmania-style approach rings that shrink toward the target key,
- * giving players anticipation and timing feedback. This is the core
- * rhythm-game DNA that makes "press the key as the ring closes in"
- * addictive.
+ * osu!/Stepmania-style approach rings that show multiple upcoming notes
+ * simultaneously, creating the "reading" skill that makes rhythm games
+ * addictive. Each key shows its own approach ring at different shrink stages.
  *
- * Each note gets a ring that:
- * - Starts large (~3x key width) at approach time
- * - Shrinks linearly toward the key
- * - Matches the key size at the exact hit moment
- * - Changes color as it gets closer (white → cyan → judgment color)
+ * Features:
+ * - Multiple simultaneous rings on different keys
+ * - Difficulty-based preempt time scaling
+ * - Color ramp by proximity (white → cyan → green → yellow)
+ * - Opacity by distance (faint far notes, bright near notes)
+ * - Rings shrink toward target key as note approaches
+ * - Hit/miss animations with expanding rings
  */
 
 import { BeatNote } from './types.js';
@@ -21,10 +22,10 @@ interface ApproachRing {
   keyY: number;
   keyWidth: number;
   keyHeight: number;
-  startTime: number;     // Song time when ring starts appearing
   hitTime: number;       // Song time when ring matches key size
   judged: boolean;       // Whether this note has been resolved
   judgment: 'perfect' | 'great' | 'good' | 'miss' | null;
+  spawnTime: number;     // When this ring was created
 }
 
 export class ApproachRingSystem {
@@ -36,18 +37,24 @@ export class ApproachRingSystem {
   private height: number = 0;
 
   // Configuration
-  private approachTime: number = 1500;  // ms before hit when ring starts
-  private maxScale: number = 3.0;       // Ring starts at 3x key size
+  private preemptTime: number = 1500;  // ms before hit when ring starts
+  private maxScale: number = 4.0;      // Ring starts at 4x key size
+  private noteCount: number = 3;       // How many upcoming notes to show
 
-  // Colors
-  private ringColor: string = '#ffffff';
+  // Colors for proximity ramp
+  private farColor: string = '#ffffff';     // White for far notes
+  private midColor: string = '#00e5ff';     // Cyan for medium notes
+  private nearColor: string = '#76ff03';    // Green for near notes
+  private urgentColor: string = '#ffea00';  // Yellow for urgent notes
+
+  // Judgment colors
   private perfectColor: string = '#00e5ff';
   private greatColor: string = '#76ff03';
   private goodColor: string = '#ffea00';
   private missColor: string = '#ff1744';
 
   // External references (set by feedback layer)
-  judge: { getSongTime: () => number; beatMap: { notes: BeatNote[] } } | null = null;
+  judge: { getSongTime: () => number; beatMap: { notes: BeatNote[] }; getNextNotes: (count: number) => Array<{ note: BeatNote; timeUntilHit: number }> } | null = null;
   keyboard: { getKeyElement: (keyId: string) => SVGElement | null } | null = null;
   container: HTMLElement | null = null;
 
@@ -62,6 +69,16 @@ export class ApproachRingSystem {
     this.canvas.style.left = '0';
     this.canvas.style.width = '100%';
     this.canvas.style.height = '100%';
+  }
+
+  /** Set preempt time based on difficulty */
+  setPreemptTime(ms: number): void {
+    this.preemptTime = ms;
+  }
+
+  /** Set how many upcoming notes to show */
+  setNoteCount(count: number): void {
+    this.noteCount = count;
   }
 
   /** Resize the canvas */
@@ -113,17 +130,17 @@ export class ApproachRingSystem {
     if (!this.judge) return;
 
     const songTime = this.judge.getSongTime();
+    const upcomingNotes = this.judge.getNextNotes(this.noteCount + 2); // +2 for buffer
 
-    // Find notes that should now be visible (within approach window)
-    for (const note of this.judge.beatMap.notes) {
-      // Skip if ring already exists
+    for (const { note, timeUntilHit } of upcomingNotes) {
+      // Skip if ring already exists for this note
       if (this.rings.some(r => r.note === note)) continue;
 
       // Skip if note is too far in the future
-      if (note.time - songTime > this.approachTime) continue;
+      if (timeUntilHit > this.preemptTime) continue;
 
       // Skip if note is too far in the past
-      if (songTime > note.time + 300) continue;
+      if (timeUntilHit < -300) continue;
 
       // Get key position
       const pos = this.getKeyPosition(note.key);
@@ -135,10 +152,10 @@ export class ApproachRingSystem {
         keyY: pos.y,
         keyWidth: pos.width,
         keyHeight: pos.height,
-        startTime: note.time - this.approachTime,
-        hitTime: note.time,
+        hitTime: songTime + timeUntilHit,
         judged: false,
         judgment: null,
+        spawnTime: songTime,
       });
     }
 
@@ -166,7 +183,7 @@ export class ApproachRingSystem {
 
     for (const ring of this.rings) {
       const timeUntilHit = ring.hitTime - songTime;
-      const progress = 1 - (timeUntilHit / this.approachTime); // 0 → 1
+      const progress = 1 - (timeUntilHit / this.preemptTime); // 0 → 1
 
       if (ring.judged) {
         this.renderJudgedRing(ctx, ring, songTime);
@@ -174,33 +191,46 @@ export class ApproachRingSystem {
       }
 
       // Calculate ring size (shrinks from maxScale to 1.0)
-      const scale = this.maxScale + (1 - this.maxScale) * progress;
+      const scale = this.maxScale + (1 - this.maxScale) * Math.min(1, Math.max(0, progress));
       const radiusX = (ring.keyWidth / 2) * scale;
       const radiusY = (ring.keyHeight / 2) * scale;
 
-      // Color transitions from white to judgment color as it gets closer
+      // Color based on proximity (progress)
       const color = this.getRingColor(progress);
 
-      // Opacity fades in as it approaches
-      const alpha = Math.min(1, progress * 2);
+      // Opacity based on proximity (faint far, bright near)
+      const alpha = this.getRingAlpha(progress);
 
       // Draw the approach ring
       ctx.save();
       ctx.globalAlpha = alpha;
       ctx.strokeStyle = color;
-      ctx.lineWidth = 2;
+      ctx.lineWidth = progress > 0.7 ? 3 : 2; // Thicker when close
       ctx.beginPath();
       ctx.ellipse(ring.keyX, ring.keyY, radiusX, radiusY, 0, 0, Math.PI * 2);
       ctx.stroke();
 
-      // Draw a subtle inner glow
+      // Inner glow for close notes
       if (progress > 0.5) {
-        const glowAlpha = (progress - 0.5) * 0.3;
+        const glowAlpha = (progress - 0.5) * 0.4;
         ctx.globalAlpha = glowAlpha;
         ctx.fillStyle = color;
         ctx.beginPath();
-        ctx.ellipse(ring.keyX, ring.keyY, radiusX * 0.8, radiusY * 0.8, 0, 0, Math.PI * 2);
+        ctx.ellipse(ring.keyX, ring.keyY, radiusX * 0.7, radiusY * 0.7, 0, 0, Math.PI * 2);
         ctx.fill();
+      }
+
+      // Draw a "lane line" connecting ring to key (Stepmania-style)
+      if (progress > 0.2) {
+        ctx.globalAlpha = alpha * 0.3;
+        ctx.strokeStyle = color;
+        ctx.lineWidth = 1;
+        ctx.setLineDash([4, 4]);
+        ctx.beginPath();
+        ctx.moveTo(ring.keyX, ring.keyY - radiusY);
+        ctx.lineTo(ring.keyX, ring.keyY - ring.keyHeight / 2);
+        ctx.stroke();
+        ctx.setLineDash([]);
       }
 
       ctx.restore();
@@ -223,12 +253,12 @@ export class ApproachRingSystem {
     const color = colors[ring.judgment || 'miss'];
 
     // Expanding ring on hit
-    const expandScale = ring.judgment === 'perfect' ? 2.0 : 1.5;
+    const expandScale = ring.judgment === 'perfect' ? 2.5 : ring.judgment === 'great' ? 2.0 : 1.5;
     const radiusX = (ring.keyWidth / 2) * (1 + fadeProgress * expandScale);
     const radiusY = (ring.keyHeight / 2) * (1 + fadeProgress * expandScale);
 
     ctx.save();
-    ctx.globalAlpha = alpha * 0.6;
+    ctx.globalAlpha = alpha * 0.7;
     ctx.strokeStyle = color;
     ctx.lineWidth = 3 * (1 - fadeProgress);
     ctx.beginPath();
@@ -237,7 +267,7 @@ export class ApproachRingSystem {
 
     // Inner flash for perfect/great
     if (ring.judgment === 'perfect' || ring.judgment === 'great') {
-      ctx.globalAlpha = alpha * 0.3;
+      ctx.globalAlpha = alpha * 0.4;
       ctx.fillStyle = color;
       ctx.beginPath();
       ctx.ellipse(ring.keyX, ring.keyY, ring.keyWidth * 0.6, ring.keyHeight * 0.6, 0, 0, Math.PI * 2);
@@ -247,10 +277,18 @@ export class ApproachRingSystem {
     ctx.restore();
   }
 
+  /** Get ring color based on proximity (progress 0→1) */
   private getRingColor(progress: number): string {
-    if (progress < 0.3) return this.ringColor;
-    if (progress < 0.6) return this.perfectColor;
-    return this.greatColor;
+    if (progress < 0.25) return this.farColor;
+    if (progress < 0.5) return this.midColor;
+    if (progress < 0.75) return this.nearColor;
+    return this.urgentColor;
+  }
+
+  /** Get ring alpha based on proximity (faint far, bright near) */
+  private getRingAlpha(progress: number): number {
+    // Far notes: 30% opacity, near notes: 100% opacity
+    return 0.3 + progress * 0.7;
   }
 
   /** Start the animation loop */

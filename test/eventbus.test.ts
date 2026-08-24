@@ -394,9 +394,11 @@ console.log('\\n[9] BeatClockJudge — Note accessors');
   const current = judge.getCurrentNote();
   assertEqual(current?.key, 'f', 'getCurrentNote returns first note');
 
-  // getNextNote with default lookahead returns the second note
-  const next = judge.getNextNote();
-  assertEqual(next?.key, 'j', 'getNextNote returns second note');
+  // getNextNotes returns upcoming notes
+  const upcoming = judge.getNextNotes(2);
+  assertEqual(upcoming.length, 2, 'getNextNotes returns 2 notes');
+  assertEqual(upcoming[0].note.key, 'f', 'First upcoming note is "f"');
+  assertEqual(upcoming[1].note.key, 'j', 'Second upcoming note is "j"');
 
   // After advancing cursor, getCurrentNote updates
   const rawBus = new RawBus();
@@ -462,6 +464,33 @@ console.log('\\n[11] BeatMapGenerator — Character order preserved');
 
   const result = notes.map(n => n.key).join('');
   assertEqual(result, content, 'Character order matches input exactly');
+}
+
+// Test: getNextNotes returns upcoming notes with timeUntilHit
+console.log('\\n[12] BeatClockJudge — getNextNotes');
+{
+  const notes: BeatNote[] = [
+    { key: 'f', time: 1000, window: 150 },
+    { key: 'j', time: 2000, window: 150 },
+    { key: 'd', time: 3000, window: 150 },
+    { key: 'k', time: 4000, window: 150 },
+  ];
+
+  const beatMap = new StaticBeatMap(notes);
+  const windows: TimingWindows = { perfect: 40, great: 80, good: 150 };
+
+  const judge = new BeatClockJudge(beatMap, { difficulty: 'easy', windows });
+  judge.setStartTime(performance.now() - 500); // 500ms into song
+
+  const upcoming = judge.getNextNotes(3);
+  assertEqual(upcoming.length, 3, 'Returns 3 upcoming notes');
+  assertEqual(upcoming[0].note.key, 'f', 'First note is "f"');
+  assertEqual(upcoming[1].note.key, 'j', 'Second note is "j"');
+  assertEqual(upcoming[2].note.key, 'd', 'Second note is "d"');
+
+  // timeUntilHit should be approximately note.time - 500
+  const tolerance = 50;
+  assert(Math.abs(upcoming[0].timeUntilHit - 500) < tolerance, 'First note timeUntilHit ~500ms');
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

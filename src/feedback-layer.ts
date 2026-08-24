@@ -122,6 +122,8 @@ export class FeedbackLayer implements FeedbackLayerInterface {
     // Approach ring system
     this.approachRings = new ApproachRingSystem(this.approachRingCanvas);
     this.approachRings.resize(this.width, this.height);
+    this.approachRings.setPreemptTime(1500); // Default to easy
+    this.approachRings.setNoteCount(3);
 
     // ARIA live region (accessible announcements)
     this.liveRegion = document.createElement('div');
@@ -274,11 +276,21 @@ export class FeedbackLayer implements FeedbackLayerInterface {
     this.comboDisplay.style.textShadow = 'none';
   }
 
+  /** Set approach ring preempt time (ms before hit when rings appear) */
+  setPreemptTime(ms: number): void {
+    this.approachRings.setPreemptTime(ms);
+  }
+
+  /** Set how many upcoming notes to show approach rings for */
+  setNoteCount(count: number): void {
+    this.approachRings.setNoteCount(count);
+  }
+
   /**
    * Provide a reference to the judge so the feedback layer can query the current
    * expected note and render a persistent expected-key indicator.
    */
-  setJudge(judge: { getCurrentNote: () => BeatNote | undefined; getNextNote: (ms?: number) => BeatNote | undefined; getSongTime: () => number; beatMap: { notes: BeatNote[] } }): void {
+  setJudge(judge: { getCurrentNote: () => BeatNote | undefined; getNextNotes: (count: number) => Array<{ note: BeatNote; timeUntilHit: number }>; getSongTime: () => number; beatMap: { notes: BeatNote[] } }): void {
     this.judge = judge;
     this.createExpectedKeyIndicator();
     this.approachRings.judge = judge;

@@ -314,20 +314,22 @@ var BeatClockJudge = class {
     return this.beatMap.notes[this._cursor];
   }
   /**
-   * Get the note that will next require attention within lookaheadMs.
-   * Consumed by the feedback layer to pre-load visual cues.
-   * @param lookaheadMs  Time window in ms (default: 2000)
+   * Get the next N upcoming notes with their time-until-hit values.
+   * Used by the approach ring system to render multiple simultaneous rings.
+   * @param count  Number of upcoming notes to return
+   * @returns Array of notes with timeUntilHit in ms
    */
-  getNextNote(lookaheadMs = 2e3) {
-    if (this._cursor >= this.beatMap.length) return void 0;
-    const now = this.beatMap.notes[this._cursor].time;
-    for (let i = this._cursor + 1; i < this.beatMap.length; i++) {
+  getNextNotes(count = 3) {
+    const songTime = this.getSongTime();
+    const result = [];
+    for (let i = this._cursor; i < this.beatMap.length && result.length < count; i++) {
       const note = this.beatMap.notes[i];
-      if (note.time - now <= lookaheadMs) {
-        return note;
+      const timeUntilHit = note.time - songTime;
+      if (timeUntilHit > -200) {
+        result.push({ note, timeUntilHit });
       }
     }
-    return void 0;
+    return result;
   }
   /**
    * Subscribe to judgment events (for the feedback layer, stats, etc.).
@@ -1482,12 +1484,22 @@ var ApproachRingSystem = class {
   width = 0;
   height = 0;
   // Configuration
-  approachTime = 1500;
+  preemptTime = 1500;
   // ms before hit when ring starts
-  maxScale = 3;
-  // Ring starts at 3x key size
-  // Colors
-  ringColor = "#ffffff";
+  maxScale = 4;
+  // Ring starts at 4x key size
+  noteCount = 3;
+  // How many upcoming notes to show
+  // Colors for proximity ramp
+  farColor = "#ffffff";
+  // White for far notes
+  midColor = "#00e5ff";
+  // Cyan for medium notes
+  nearColor = "#76ff03";
+  // Green for near notes
+  urgentColor = "#ffea00";
+  // Yellow for urgent notes
+  // Judgment colors
   perfectColor = "#00e5ff";
   greatColor = "#76ff03";
   goodColor = "#ffea00";
@@ -1507,6 +1519,14 @@ var ApproachRingSystem = class {
     this.canvas.style.left = "0";
     this.canvas.style.width = "100%";
     this.canvas.style.height = "100%";
+  }
+  /** Set preempt time based on difficulty */
+  setPreemptTime(ms) {
+    this.preemptTime = ms;
+  }
+  /** Set how many upcoming notes to show */
+  setNoteCount(count) {
+    this.noteCount = count;
   }
   /** Resize the canvas */
   resize(width, height) {
@@ -1549,10 +1569,11 @@ var ApproachRingSystem = class {
   update() {
     if (!this.judge) return;
     const songTime = this.judge.getSongTime();
-    for (const note of this.judge.beatMap.notes) {
+    const upcomingNotes = this.judge.getNextNotes(this.noteCount + 2);
+    for (const { note, timeUntilHit } of upcomingNotes) {
       if (this.rings.some((r) => r.note === note)) continue;
-      if (note.time - songTime > this.approachTime) continue;
-      if (songTime > note.time + 300) continue;
+      if (timeUntilHit > this.preemptTime) continue;
+      if (timeUntilHit < -300) continue;
       const pos = this.getKeyPosition(note.key);
       if (!pos) continue;
       this.rings.push({
@@ -1561,10 +1582,10 @@ var ApproachRingSystem = class {
         keyY: pos.y,
         keyWidth: pos.width,
         keyHeight: pos.height,
-        startTime: note.time - this.approachTime,
-        hitTime: note.time,
+        hitTime: songTime + timeUntilHit,
         judged: false,
-        judgment: null
+        judgment: null,
+        spawnTime: songTime
       });
     }
     for (let i = this.rings.length - 1; i >= 0; i--) {
@@ -1585,30 +1606,41 @@ var ApproachRingSystem = class {
     ctx.clearRect(0, 0, this.width, this.height);
     for (const ring of this.rings) {
       const timeUntilHit = ring.hitTime - songTime;
-      const progress = 1 - timeUntilHit / this.approachTime;
+      const progress = 1 - timeUntilHit / this.preemptTime;
       if (ring.judged) {
         this.renderJudgedRing(ctx, ring, songTime);
         continue;
       }
-      const scale = this.maxScale + (1 - this.maxScale) * progress;
+      const scale = this.maxScale + (1 - this.maxScale) * Math.min(1, Math.max(0, progress));
       const radiusX = ring.keyWidth / 2 * scale;
       const radiusY = ring.keyHeight / 2 * scale;
       const color = this.getRingColor(progress);
-      const alpha = Math.min(1, progress * 2);
+      const alpha = this.getRingAlpha(progress);
       ctx.save();
       ctx.globalAlpha = alpha;
       ctx.strokeStyle = color;
-      ctx.lineWidth = 2;
+      ctx.lineWidth = progress > 0.7 ? 3 : 2;
       ctx.beginPath();
       ctx.ellipse(ring.keyX, ring.keyY, radiusX, radiusY, 0, 0, Math.PI * 2);
       ctx.stroke();
       if (progress > 0.5) {
-        const glowAlpha = (progress - 0.5) * 0.3;
+        const glowAlpha = (progress - 0.5) * 0.4;
         ctx.globalAlpha = glowAlpha;
         ctx.fillStyle = color;
         ctx.beginPath();
-        ctx.ellipse(ring.keyX, ring.keyY, radiusX * 0.8, radiusY * 0.8, 0, 0, Math.PI * 2);
+        ctx.ellipse(ring.keyX, ring.keyY, radiusX * 0.7, radiusY * 0.7, 0, 0, Math.PI * 2);
         ctx.fill();
+      }
+      if (progress > 0.2) {
+        ctx.globalAlpha = alpha * 0.3;
+        ctx.strokeStyle = color;
+        ctx.lineWidth = 1;
+        ctx.setLineDash([4, 4]);
+        ctx.beginPath();
+        ctx.moveTo(ring.keyX, ring.keyY - radiusY);
+        ctx.lineTo(ring.keyX, ring.keyY - ring.keyHeight / 2);
+        ctx.stroke();
+        ctx.setLineDash([]);
       }
       ctx.restore();
     }
@@ -1625,18 +1657,18 @@ var ApproachRingSystem = class {
       miss: this.missColor
     };
     const color = colors[ring.judgment || "miss"];
-    const expandScale = ring.judgment === "perfect" ? 2 : 1.5;
+    const expandScale = ring.judgment === "perfect" ? 2.5 : ring.judgment === "great" ? 2 : 1.5;
     const radiusX = ring.keyWidth / 2 * (1 + fadeProgress * expandScale);
     const radiusY = ring.keyHeight / 2 * (1 + fadeProgress * expandScale);
     ctx.save();
-    ctx.globalAlpha = alpha * 0.6;
+    ctx.globalAlpha = alpha * 0.7;
     ctx.strokeStyle = color;
     ctx.lineWidth = 3 * (1 - fadeProgress);
     ctx.beginPath();
     ctx.ellipse(ring.keyX, ring.keyY, radiusX, radiusY, 0, 0, Math.PI * 2);
     ctx.stroke();
     if (ring.judgment === "perfect" || ring.judgment === "great") {
-      ctx.globalAlpha = alpha * 0.3;
+      ctx.globalAlpha = alpha * 0.4;
       ctx.fillStyle = color;
       ctx.beginPath();
       ctx.ellipse(ring.keyX, ring.keyY, ring.keyWidth * 0.6, ring.keyHeight * 0.6, 0, 0, Math.PI * 2);
@@ -1644,10 +1676,16 @@ var ApproachRingSystem = class {
     }
     ctx.restore();
   }
+  /** Get ring color based on proximity (progress 0→1) */
   getRingColor(progress) {
-    if (progress < 0.3) return this.ringColor;
-    if (progress < 0.6) return this.perfectColor;
-    return this.greatColor;
+    if (progress < 0.25) return this.farColor;
+    if (progress < 0.5) return this.midColor;
+    if (progress < 0.75) return this.nearColor;
+    return this.urgentColor;
+  }
+  /** Get ring alpha based on proximity (faint far, bright near) */
+  getRingAlpha(progress) {
+    return 0.3 + progress * 0.7;
   }
   /** Start the animation loop */
   start() {
@@ -1741,6 +1779,8 @@ var FeedbackLayer = class {
     this.container.appendChild(this.approachRingCanvas);
     this.approachRings = new ApproachRingSystem(this.approachRingCanvas);
     this.approachRings.resize(this.width, this.height);
+    this.approachRings.setPreemptTime(1500);
+    this.approachRings.setNoteCount(3);
     this.liveRegion = document.createElement("div");
     this.liveRegion.setAttribute("role", "status");
     this.liveRegion.setAttribute("aria-live", "polite");
@@ -1854,6 +1894,14 @@ var FeedbackLayer = class {
     this.particles.setTheme(theme);
     this.comboDisplay.style.color = theme.colors.primary;
     this.comboDisplay.style.textShadow = "none";
+  }
+  /** Set approach ring preempt time (ms before hit when rings appear) */
+  setPreemptTime(ms) {
+    this.approachRings.setPreemptTime(ms);
+  }
+  /** Set how many upcoming notes to show approach rings for */
+  setNoteCount(count) {
+    this.approachRings.setNoteCount(count);
   }
   /**
    * Provide a reference to the judge so the feedback layer can query the current

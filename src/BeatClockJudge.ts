@@ -118,20 +118,25 @@ export class BeatClockJudge {
   }
 
   /**
-   * Get the note that will next require attention within lookaheadMs.
-   * Consumed by the feedback layer to pre-load visual cues.
-   * @param lookaheadMs  Time window in ms (default: 2000)
+   * Get the next N upcoming notes with their time-until-hit values.
+   * Used by the approach ring system to render multiple simultaneous rings.
+   * @param count  Number of upcoming notes to return
+   * @returns Array of notes with timeUntilHit in ms
    */
-  getNextNote(lookaheadMs: number = 2000): BeatNote | undefined {
-    if (this._cursor >= this.beatMap.length) return undefined;
-    const now = this.beatMap.notes[this._cursor].time;
-    for (let i = this._cursor + 1; i < this.beatMap.length; i++) {
+  getNextNotes(count: number = 3): Array<{ note: BeatNote; timeUntilHit: number }> {
+    const songTime = this.getSongTime();
+    const result: Array<{ note: BeatNote; timeUntilHit: number }> = [];
+
+    for (let i = this._cursor; i < this.beatMap.length && result.length < count; i++) {
       const note = this.beatMap.notes[i];
-      if (note.time - now <= lookaheadMs) {
-        return note;
+      const timeUntilHit = note.time - songTime;
+      // Only include notes that are within the approach window
+      if (timeUntilHit > -200) {
+        result.push({ note, timeUntilHit });
       }
     }
-    return undefined;
+
+    return result;
   }
 
   /**
