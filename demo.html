@@ -477,10 +477,6 @@
       const preemptTimes = { easy: 1500, medium: 1000, hard: 600, expert: 350 };
       feedbackLayer.setPreemptTime(preemptTimes[difficulty] || 1500);
 
-      // Start game — set start time AFTER bus is listening
-      gameActive = true;
-      startTime = performance.now();
-      judge.setStartTime(startTime);
       debugPlugin.onGameStart({
         title: contentInput.value,
         artist: 'Typejoy',
