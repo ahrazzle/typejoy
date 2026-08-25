@@ -413,6 +413,9 @@
 
     // ── Start Game (always regenerates beat-map from current settings) ────
     function startGame() {
+      // Guard against double-start (e.g., button + Space simultaneously)
+      if (gameActive) return;
+
       // Always regenerate so Content and BPM changes take effect
       generateBeatMap();
       if (beatMap.length === 0) return;

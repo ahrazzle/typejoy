@@ -542,6 +542,7 @@ export class FeedbackLayer implements FeedbackLayerInterface {
     this.gameActive = false;
     this.particles.stop();
     this.approachRings.stop();
+    this.nudgeKeys.clear();
   }
 
   private startNudgeLoop(): void {

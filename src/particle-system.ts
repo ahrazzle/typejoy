@@ -399,19 +399,20 @@ export class ParticleSystem {
 
     for (let i = this.ripples.length - 1; i >= 0; i--) {
       const r = this.ripples[i];
-      const elapsed = now - r.startTime;
+      // Clamp elapsed to 0 to avoid negative radius from future-starting ripples
+      const elapsed = Math.max(0, now - r.startTime);
       if (elapsed > r.duration) {
         this.ripples.splice(i, 1);
         continue;
       }
 
-      const progress = elapsed / r.duration;
+      const progress = Math.min(1, elapsed / r.duration);
       const radius = r.maxRadius * this.easeOutQuad(progress);
       const alpha = r.opacity * (1 - progress);
 
       // Multiple concentric rings for richer effect
       for (let ring = 0; ring < 3; ring++) {
-        const ringProgress = Math.min(1, progress + ring * 0.1);
+        const ringProgress = Math.min(1, Math.max(0, progress + ring * 0.1));
         const ringRadius = r.maxRadius * this.easeOutQuad(Math.min(1, ringProgress));
         const ringAlpha = alpha * (1 - ring * 0.3);
 
