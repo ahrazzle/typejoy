@@ -542,6 +542,10 @@ export class FeedbackLayer implements FeedbackLayerInterface {
     this.gameActive = false;
     this.particles.stop();
     this.approachRings.stop();
+    // Clear any lingering nudge highlights
+    for (const [keyId] of this.nudgeKeys) {
+      this.keyboard.clearNudgeGlow(keyId);
+    }
     this.nudgeKeys.clear();
   }
 

@@ -460,6 +460,11 @@
         },
       });
 
+      // Set start time BEFORE bus is listening so timing is correct
+      gameActive = true;
+      startTime = performance.now();
+      judge.setStartTime(startTime);
+
       // Wire: RawBus → NormalizedBus → BeatClockJudge
       normBus.start();
       judge.attach(normBus);

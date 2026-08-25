@@ -536,11 +536,12 @@ var StaticBeatMap = class {
 
 // src/beatmap-generator.ts
 var TIMING_WINDOWS2 = {
-  easy: 150,
-  medium: 80,
-  hard: 40,
-  expert: 25
+  easy: 500,
+  medium: 300,
+  hard: 150,
+  expert: 80
 };
+var LEAD_IN_MS = 3e3;
 var COMMON_LETTERS = /* @__PURE__ */ new Set(["e", "t", "a", "o", "i", "n", "s", "r"]);
 function effectiveBpm(options) {
   if (options.wordsPerMinute != null && options.wordsPerMinute > 0) {
@@ -569,7 +570,7 @@ var BeatMapGenerator = class {
       }
       notes.push({
         key,
-        time: Math.round(i * beatInterval),
+        time: LEAD_IN_MS + Math.round(i * beatInterval),
         window: window2
       });
     }
@@ -2108,6 +2109,9 @@ var FeedbackLayer = class {
     this.gameActive = false;
     this.particles.stop();
     this.approachRings.stop();
+    for (const [keyId] of this.nudgeKeys) {
+      this.keyboard.clearNudgeGlow(keyId);
+    }
     this.nudgeKeys.clear();
   }
   startNudgeLoop() {

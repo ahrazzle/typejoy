@@ -26,11 +26,14 @@ export interface GeneratorOptions {
 
 /** Timing window per difficulty (ms) — how tight the hit window is. */
 const TIMING_WINDOWS: Record<Difficulty, number> = {
-  easy: 150,
-  medium: 80,
-  hard: 40,
-  expert: 25,
+  easy: 500,
+  medium: 300,
+  hard: 150,
+  expert: 80,
 };
+
+/** Lead-in time before the first note (ms) — gives players time to prepare. */
+const LEAD_IN_MS = 3000;
 
 /** Common letters that get doubled notes on hard difficulty. */
 const COMMON_LETTERS = new Set(['e', 't', 'a', 'o', 'i', 'n', 's', 'r']);
@@ -81,7 +84,7 @@ export class BeatMapGenerator {
 
       notes.push({
         key,
-        time: Math.round(i * beatInterval),
+        time: LEAD_IN_MS + Math.round(i * beatInterval),
         window,
       });
     }
