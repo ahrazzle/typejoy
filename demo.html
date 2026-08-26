@@ -430,6 +430,10 @@
       normBus = null;
       rawBus = null;
 
+      // Create new debugPlugin for each game to isolate events
+      debugPlugin = new DebugPlugin();
+      debugPlugin.setFeedbackLayer(feedbackLayer);
+
       // Create new bus + judge
       rawBus = new RawBus(window);
       normBus = new NormalizedBus(rawBus);
@@ -437,16 +441,19 @@
       const difficulty = difficultySelect.value;
       judge = new BeatClockJudge(beatMap, { difficulty }, {
         onHit: (event) => {
+          if (!gameActive) return;
           debugPlugin.onHit(event.judgment, event.key, event.delta);
           feedbackLayer.renderHit(event.judgment, event.key, event.delta);
           updateStatus();
         },
         onMiss: (key, expectedKey, delta) => {
+          if (!gameActive) return;
           debugPlugin.onMiss(key, expectedKey);
           feedbackLayer.renderMiss(key, expectedKey);
           updateStatus();
         },
         onNoteStale: (note) => {
+          if (!gameActive) return;
           debugPlugin.onNoteStale(note);
           feedbackLayer.renderStale(note);
           updateStatus();
