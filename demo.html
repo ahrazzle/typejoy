@@ -343,6 +343,7 @@
     let feedbackLayer = null;
     let debugPlugin = null;
     let judge = null;
+    let currentJudgeRef = null;
     let rawBus = null;
     let normBus = null;
     let beatMap = null;
@@ -439,21 +440,21 @@
       normBus = new NormalizedBus(rawBus);
 
       const difficulty = difficultySelect.value;
-      judge = new BeatClockJudge(beatMap, { difficulty }, {
+      const newJudge = new BeatClockJudge(beatMap, { difficulty }, {
         onHit: (event) => {
-          if (!gameActive) return;
+          if (judge !== newJudge) return;
           debugPlugin.onHit(event.judgment, event.key, event.delta);
           feedbackLayer.renderHit(event.judgment, event.key, event.delta);
           updateStatus();
         },
         onMiss: (key, expectedKey, delta) => {
-          if (!gameActive) return;
+          if (judge !== newJudge) return;
           debugPlugin.onMiss(key, expectedKey);
           feedbackLayer.renderMiss(key, expectedKey);
           updateStatus();
         },
         onNoteStale: (note) => {
-          if (!gameActive) return;
+          if (judge !== newJudge) return;
           debugPlugin.onNoteStale(note);
           feedbackLayer.renderStale(note);
           updateStatus();
@@ -470,6 +471,8 @@
           feedbackLayer.renderMiss(key, expectedKey);
         },
       });
+
+      judge = newJudge;
 
       // Set start time BEFORE bus is listening so timing is correct
       gameActive = true;
