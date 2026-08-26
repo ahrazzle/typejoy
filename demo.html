@@ -536,6 +536,9 @@
       if (normBus) normBus.stop();
       if (tickHandle) clearInterval(tickHandle);
 
+      // Detach judge from bus so no more events reach it
+      if (judge) judge.detach();
+
       // Null out old judge so any queued events are ignored
       judge = null;
       normBus = null;
