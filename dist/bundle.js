@@ -2109,9 +2109,7 @@ var FeedbackLayer = class {
     this.gameActive = false;
     this.particles.stop();
     this.approachRings.stop();
-    for (const [keyId] of this.nudgeKeys) {
-      this.keyboard.clearNudgeGlow(keyId);
-    }
+    this.keyboard.reset();
     this.nudgeKeys.clear();
   }
   startNudgeLoop() {
