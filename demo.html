@@ -524,11 +524,20 @@
     }
 
     function endGame() {
-      gameActive = false;
+      // Stop bus FIRST to prevent any keypresses from reaching the judge
+      if (rawBus) rawBus.stop();
+      if (normBus) normBus.stop();
       if (tickHandle) clearInterval(tickHandle);
-      rawBus?.stop();
+
+      // Null out old judge so any queued events are ignored
+      judge = null;
+      normBus = null;
+      rawBus = null;
+
+      // Stop feedback and reset state
       feedbackLayer.stop();
       feedbackLayer.reset();
+      gameActive = false;
       document.getElementById('status-state').textContent = 'complete';
 
       const results = {
@@ -586,6 +595,9 @@
 
     // Keyboard shortcuts
     document.addEventListener('keydown', (e) => {
+      // Ignore keypresses when no game is active (prevents orphaned MISS events)
+      if (!judge) return;
+
       if (e.key === 'Escape' && gameActive) {
         endGame();
       }
