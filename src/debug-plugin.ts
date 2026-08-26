@@ -110,6 +110,11 @@ export class DebugPlugin implements GamePlugin {
 
   setFeedbackLayer(layer: FeedbackLayer): void {
     this.feedbackLayer = layer;
+    // Remove old container if switching layers
+    if (this.container) {
+      this.container.remove();
+      this.container = null;
+    }
   }
 
   // ---- UI Construction ---------------------------------------------------

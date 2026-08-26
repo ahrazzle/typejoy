@@ -292,6 +292,11 @@ export class FeedbackLayer implements FeedbackLayerInterface {
    */
   setJudge(judge: { getCurrentNote: () => BeatNote | undefined; getNextNotes: (count: number) => Array<{ note: BeatNote; timeUntilHit: number }>; getSongTime: () => number; beatMap: { notes: BeatNote[] } }): void {
     this.judge = judge;
+    // Remove old indicator before creating new to prevent DOM accumulation
+    if (this.expectedKeyIndicator) {
+      this.expectedKeyIndicator.remove();
+      this.expectedKeyIndicator = null;
+    }
     this.createExpectedKeyIndicator();
     this.approachRings.judge = judge;
     this.approachRings.keyboard = this.keyboard as unknown as { getKeyElement: (keyId: string) => SVGElement | null };

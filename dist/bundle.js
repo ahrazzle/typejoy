@@ -1910,6 +1910,10 @@ var FeedbackLayer = class {
    */
   setJudge(judge) {
     this.judge = judge;
+    if (this.expectedKeyIndicator) {
+      this.expectedKeyIndicator.remove();
+      this.expectedKeyIndicator = null;
+    }
     this.createExpectedKeyIndicator();
     this.approachRings.judge = judge;
     this.approachRings.keyboard = this.keyboard;
@@ -2199,6 +2203,10 @@ var DebugPlugin = class {
   // ---- Framework Integration Helpers ------------------------------------
   setFeedbackLayer(layer) {
     this.feedbackLayer = layer;
+    if (this.container) {
+      this.container.remove();
+      this.container = null;
+    }
   }
   // ---- UI Construction ---------------------------------------------------
   createUI() {
