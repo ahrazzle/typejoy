@@ -394,13 +394,16 @@ var BeatClockJudge = class {
     if (!expected) {
       return;
     }
+    const songTime = evt.raw.timestamp - this._startTime;
+    const delta = songTime - expected.time;
+    const absDelta = Math.abs(delta);
+    if (delta < -this.windows.good) {
+      return;
+    }
     if (evt.char !== expected.key) {
       this.hooks.onWrongKey?.(evt.char, expected.key);
       return;
     }
-    const songTime = evt.raw.timestamp - this._startTime;
-    const delta = songTime - expected.time;
-    const absDelta = Math.abs(delta);
     let judgment;
     if (absDelta <= this.windows.perfect) {
       judgment = "perfect";

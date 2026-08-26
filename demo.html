@@ -524,6 +524,10 @@
     }
 
     function endGame() {
+      // Capture results BEFORE tearing down
+      const finalCombo = judge ? judge.state.maxCombo : 0;
+      const totalNotes = beatMap ? beatMap.length : 0;
+
       // Stop bus FIRST to prevent any keypresses from reaching the judge
       if (rawBus) rawBus.stop();
       if (normBus) normBus.stop();
@@ -544,8 +548,8 @@
         title: contentInput.value,
         artist: 'Typejoy',
         score: 0,
-        maxCombo: judge.state.maxCombo,
-        totalNotes: beatMap.length,
+        maxCombo: finalCombo,
+        totalNotes: totalNotes,
         judgments: { perfect: 0, great: 0, good: 0, miss: 0 },
         accuracy: 0,
         passed: true,

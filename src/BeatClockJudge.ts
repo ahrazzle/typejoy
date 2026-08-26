@@ -216,16 +216,22 @@ export class BeatClockJudge {
       return;
     }
 
+    // Correct key — compute timing delta relative to song start
+    const songTime = evt.raw.timestamp - this._startTime;
+    const delta = songTime - expected.time;
+    const absDelta = Math.abs(delta);
+
+    // Ignore keypresses that happen before the note's window opens (e.g., during lead-in)
+    if (delta < -this.windows.good) {
+      // Too early — don't register as wrong, don't break combo
+      return;
+    }
+
     if (evt.char !== expected.key) {
       // WRONG KEY — emit onWrongKey hook for feedback, but don't advance cursor or break combo
       this.hooks.onWrongKey?.(evt.char, expected.key);
       return;
     }
-
-    // Correct key — compute timing delta relative to song start
-    const songTime = evt.raw.timestamp - this._startTime;
-    const delta = songTime - expected.time;
-    const absDelta = Math.abs(delta);
 
     let judgment: Judgment;
     if (absDelta <= this.windows.perfect) {
