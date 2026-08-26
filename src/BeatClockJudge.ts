@@ -209,6 +209,8 @@ export class BeatClockJudge {
    */
   onChar(evt: NormalizedEvent): void {
     if (evt.phase !== 'press') return;
+    // If the song is complete, ignore any remaining keypresses
+    if (this._cursor >= this.beatMap.length) return;
 
     const expected = this.getExpectedNote();
     if (!expected) {

@@ -390,6 +390,7 @@ var BeatClockJudge = class {
    */
   onChar(evt) {
     if (evt.phase !== "press") return;
+    if (this._cursor >= this.beatMap.length) return;
     const expected = this.getExpectedNote();
     if (!expected) {
       return;
