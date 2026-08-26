@@ -2210,6 +2210,10 @@ var DebugPlugin = class {
   }
   // ---- UI Construction ---------------------------------------------------
   createUI() {
+    if (this.container) {
+      this.container.remove();
+      this.container = null;
+    }
     this.container = document.createElement("div");
     this.container.style.position = "absolute";
     this.container.style.top = "0";

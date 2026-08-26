@@ -120,6 +120,11 @@ export class DebugPlugin implements GamePlugin {
   // ---- UI Construction ---------------------------------------------------
 
   private createUI(): void {
+    // Remove old UI if it exists to prevent DOM accumulation across games
+    if (this.container) {
+      this.container.remove();
+      this.container = null;
+    }
     // Create a container for the debug plugin's UI
     this.container = document.createElement('div');
     this.container.style.position = 'absolute';
