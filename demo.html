@@ -425,6 +425,10 @@
       if (normBus) normBus.stop();
       if (rawBus) rawBus.stop();
       if (tickHandle) clearInterval(tickHandle);
+      // Null out references to prevent orphaned events from old game
+      judge = null;
+      normBus = null;
+      rawBus = null;
 
       // Create new bus + judge
       rawBus = new RawBus(window);
