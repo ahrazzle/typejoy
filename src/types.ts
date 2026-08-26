@@ -136,10 +136,10 @@ export interface JudgmentEvent {
 }
 
 export const TIMING_WINDOWS: Record<Difficulty, TimingWindows> = {
-  easy: { perfect: 150, great: 200, good: 300 },
-  medium: { perfect: 80, great: 120, good: 200 },
-  hard: { perfect: 40, great: 80, good: 150 },
-  expert: { perfect: 25, great: 50, good: 100 },
+  easy: { perfect: 500, great: 700, good: 1000 },
+  medium: { perfect: 300, great: 500, good: 700 },
+  hard: { perfect: 150, great: 300, good: 500 },
+  expert: { perfect: 80, great: 150, good: 250 }
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
