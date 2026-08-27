@@ -2213,11 +2213,15 @@ var DebugPlugin = class {
     }
   }
   // ---- UI Construction ---------------------------------------------------
+  // NOTE: Debug UI is hidden by default for the kids' game.
+  // Set this.showDebugUI = true to enable development debugging.
+  showDebugUI = false;
   createUI() {
     if (this.container) {
       this.container.remove();
       this.container = null;
     }
+    if (!this.showDebugUI) return;
     this.container = document.createElement("div");
     this.container.style.position = "absolute";
     this.container.style.top = "0";
@@ -2305,6 +2309,7 @@ var DebugPlugin = class {
   }
   // ---- Render Loop ------------------------------------------------------
   startRenderLoop() {
+    if (!this.showDebugUI) return;
     const loop = () => {
       this.render();
       this.animationId = requestAnimationFrame(loop);
@@ -2362,7 +2367,9 @@ var DebugPlugin = class {
     if (this.logEl) {
       this.logEl.innerHTML = this.judgmentLog.map((l) => `<div>${l}</div>`).join("");
     }
-    console.log(`[DebugPlugin] ${msg}`);
+    if (this.showDebugUI) {
+      console.log(`[${this.name}] ${msg}`);
+    }
   }
   // ---- Cleanup ----------------------------------------------------------
   destroy() {

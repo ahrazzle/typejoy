@@ -118,6 +118,10 @@ export class DebugPlugin implements GamePlugin {
   }
 
   // ---- UI Construction ---------------------------------------------------
+  // NOTE: Debug UI is hidden by default for the kids' game.
+  // Set this.showDebugUI = true to enable development debugging.
+
+  private showDebugUI = false;
 
   private createUI(): void {
     // Remove old UI if it exists to prevent DOM accumulation across games
@@ -125,6 +129,9 @@ export class DebugPlugin implements GamePlugin {
       this.container.remove();
       this.container = null;
     }
+
+    // Don't create visible UI for the kids' game
+    if (!this.showDebugUI) return;
     // Create a container for the debug plugin's UI
     this.container = document.createElement('div');
     this.container.style.position = 'absolute';
@@ -228,6 +235,8 @@ export class DebugPlugin implements GamePlugin {
   // ---- Render Loop ------------------------------------------------------
 
   private startRenderLoop(): void {
+    // Only run render loop when debug UI is enabled
+    if (!this.showDebugUI) return;
     const loop = () => {
       this.render();
       this.animationId = requestAnimationFrame(loop);
@@ -296,7 +305,10 @@ export class DebugPlugin implements GamePlugin {
     if (this.logEl) {
       this.logEl.innerHTML = this.judgmentLog.map(l => `<div>${l}</div>`).join('');
     }
-    console.log(`[DebugPlugin] ${msg}`);
+    // Only log to console when debug UI is enabled
+    if (this.showDebugUI) {
+      console.log(`[${this.name}] ${msg}`);
+    }
   }
 
   // ---- Cleanup ----------------------------------------------------------
