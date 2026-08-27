@@ -371,9 +371,7 @@
     });
     // Don't start yet — wait for Start button
 
-    // ── Debug Plugin ──────────────────────────────────────────────────────
-    debugPlugin = new DebugPlugin();
-    debugPlugin.setFeedbackLayer(feedbackLayer);
+    // ── Debug Plugin (created per game) ───────────────────────────────────
 
     // ── Character Sequence Display ────────────────────────────────────────
     function renderCharacterSequence(cursor) {
@@ -426,6 +424,7 @@
       if (normBus) normBus.stop();
       if (rawBus) rawBus.stop();
       if (tickHandle) clearInterval(tickHandle);
+      if (debugPlugin) debugPlugin.destroy();
       // Null out references to prevent orphaned events from old game
       judge = null;
       normBus = null;
