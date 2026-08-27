@@ -1559,7 +1559,8 @@ var ApproachRingSystem = class {
   /** Get the screen position for a key */
   getKeyPosition(keyId) {
     if (!this.keyboard || !this.container) return null;
-    const keyEl = this.keyboard.getKeyElement(keyId);
+    const lookupKey = keyId === " " ? "space" : keyId;
+    const keyEl = this.keyboard.getKeyElement(lookupKey);
     if (!keyEl) return null;
     const keyRect = keyEl.getBoundingClientRect();
     const containerRect = this.container.getBoundingClientRect();
@@ -1730,6 +1731,9 @@ var FeedbackLayer = class {
   expectedKeyLabel = null;
   // Approach ring canvas
   approachRingCanvas;
+  // Stats display (always visible, not part of debug plugin)
+  statsDisplay = null;
+  stats = { perfect: 0, great: 0, good: 0, miss: 0 };
   // State
   maxComboReached = 0;
   nudgeKeys = /* @__PURE__ */ new Map();
@@ -1817,7 +1821,36 @@ var FeedbackLayer = class {
     this.comboDisplay.style.opacity = "0";
     this.comboDisplay.style.transition = "opacity 200ms ease, transform 200ms ease";
     this.container.appendChild(this.comboDisplay);
+    this.statsDisplay = document.createElement("div");
+    this.statsDisplay.setAttribute("aria-hidden", "true");
+    this.statsDisplay.style.position = "absolute";
+    this.statsDisplay.style.top = "12px";
+    this.statsDisplay.style.left = "12px";
+    this.statsDisplay.style.fontFamily = "system-ui, -apple-system, sans-serif";
+    this.statsDisplay.style.fontSize = "12px";
+    this.statsDisplay.style.color = "rgba(255,255,255,0.7)";
+    this.statsDisplay.style.zIndex = "3";
+    this.statsDisplay.style.pointerEvents = "none";
+    this.statsDisplay.style.lineHeight = "1.5";
+    this.statsDisplay.style.textShadow = "0 1px 3px rgba(0,0,0,0.6)";
+    this.container.appendChild(this.statsDisplay);
+    this.updateStatsDisplay();
     this.keyboard.applyTheme(this.theme, this.highContrast);
+  }
+  /** Increment and render the judgment stats (top-left) */
+  updateStatsDisplay() {
+    if (!this.statsDisplay) return;
+    this.statsDisplay.innerHTML = `
+      <span style="color:#00e5ff">Perfect: ${this.stats.perfect}</span>
+      <span style="color:#76ff03;margin-left:8px">Great: ${this.stats.great}</span>
+      <span style="color:#ffea00;margin-left:8px">Good: ${this.stats.good}</span>
+      <span style="color:#ff1744;margin-left:8px">Miss: ${this.stats.miss}</span>
+    `;
+  }
+  /** Reset judgment stats (called at game start) */
+  resetStats() {
+    this.stats = { perfect: 0, great: 0, good: 0, miss: 0 };
+    this.updateStatsDisplay();
   }
   // ─────────────────────────────────────────────────────────────────────────
   // Plugin Event Handlers
@@ -1828,6 +1861,8 @@ var FeedbackLayer = class {
     const cx = keyBounds.x + keyBounds.width / 2;
     const cy = keyBounds.y + keyBounds.height / 2;
     this.keyboard.depressKey(normalizedKey);
+    this.stats[judgment]++;
+    this.updateStatsDisplay();
     this.particles.emitRipple(cx, cy, judgment);
     switch (judgment) {
       case "perfect":
@@ -1855,6 +1890,8 @@ var FeedbackLayer = class {
   renderMiss(key, _expectedKey) {
     const normalizedKey = normalizeKey2(key);
     const keyBounds = this.getKeyScreenBounds(normalizedKey);
+    this.stats.miss++;
+    this.updateStatsDisplay();
     this.keyboard.shakeKey(normalizedKey);
     this.keyboard.setKeyHighlight(normalizedKey, this.theme.colors.danger, 0.3);
     this.particles.emitWrongKeyBurst(
@@ -2046,8 +2083,10 @@ var FeedbackLayer = class {
       return;
     }
     this.expectedKeyIndicator.style.opacity = "1";
-    this.expectedKeyLabel.textContent = note.key.toUpperCase();
-    const targetKeyEl = this.keyboard.getKeyElement(note.key);
+    const displayKey = note.key === " " ? "\u2423" : note.key.toUpperCase();
+    this.expectedKeyLabel.textContent = displayKey.toUpperCase();
+    const lookupKey = note.key === " " ? "space" : note.key;
+    const targetKeyEl = this.keyboard.getKeyElement(lookupKey);
     if (!targetKeyEl) return;
     const keyRect = targetKeyEl.getBoundingClientRect();
     const containerRect = this.container.getBoundingClientRect();
@@ -2056,7 +2095,8 @@ var FeedbackLayer = class {
     this.expectedKeyIndicator.style.transform = "translateX(-50%) translateY(0)";
   }
   getKeyScreenBounds(keyId) {
-    const keyEl = this.keyboard.getKeyElement(keyId);
+    const lookupKey = keyId === " " ? "space" : keyId;
+    const keyEl = this.keyboard.getKeyElement(lookupKey);
     if (keyEl) {
       const keyRect = keyEl.getBoundingClientRect();
       const containerRect = this.container.getBoundingClientRect();
@@ -2098,6 +2138,7 @@ var FeedbackLayer = class {
     this.comboDisplay.style.opacity = "0";
     this.comboDisplay.textContent = "";
     this.nudgeKeys.clear();
+    this.resetStats();
   }
   resize(width, height) {
     this.width = width;
