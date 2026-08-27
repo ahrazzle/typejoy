@@ -573,6 +573,40 @@ export class FeedbackLayer implements FeedbackLayerInterface {
     this.resetStats();
   }
 
+  /** Get accuracy as 0-1 based on judgment windows */
+  getAccuracy(): number {
+    const { perfect, great, good, miss } = this.stats;
+    const total = perfect + great + good + miss;
+    if (total === 0) return 0;
+    // Perfect = 100%, Great = 75%, Good = 50%, Miss = 0%
+    const weightedScore = (perfect * 1.0) + (great * 0.75) + (good * 0.5);
+    return weightedScore / total;
+  }
+
+  /** Get letter ranking based on accuracy */
+  getRanking(): string {
+    const accuracy = this.getAccuracy();
+    if (accuracy >= 0.95) return 'S';
+    if (accuracy >= 0.85) return 'A';
+    if (accuracy >= 0.70) return 'B';
+    if (accuracy >= 0.55) return 'C';
+    if (accuracy >= 0.40) return 'D';
+    return 'F';
+  }
+
+  /** Play celebration animation (confetti burst) */
+  playCelebration(): void {
+    const cx = this.width / 2;
+    const cy = this.height / 2;
+    // Emit confetti from center
+    for (let i = 0; i < 5; i++) {
+      this.particles.emitBurst(cx, cy, 'perfect', 'confetti', 1.5);
+    }
+    // Add screen-edge glow
+    this.particles.addEdgeGlow('#00e5ff', 0.6, 1000);
+    this.particles.addEdgeGlow('#76ff03', 0.4, 1200);
+  }
+
   resize(width: number, height: number): void {
     this.width = width;
     this.height = height;

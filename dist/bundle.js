@@ -448,7 +448,7 @@ var BeatClockJudge = class {
       timestamp: evt.raw.timestamp
     };
     for (const fn of this.judgmentListeners) fn(event);
-    this.hooks.onMiss?.(evt.char, expected.key, delta);
+    this.hooks.onMiss?.(evt.char, expected.key, delta, expected);
     this.hooks.onComboBreak?.(previousCombo);
     this.hooks.onCombo?.(0, 1);
   }
@@ -1732,6 +1732,8 @@ var FeedbackLayer = class {
   // Stats display (always visible, not part of debug plugin)
   statsDisplay = null;
   stats = { perfect: 0, great: 0, good: 0, miss: 0 };
+  // Judge reference (set via setJudge) for expected-key indicator + ring collapse
+  judge = null;
   // State
   maxComboReached = 0;
   nudgeKeys = /* @__PURE__ */ new Map();
@@ -2141,6 +2143,34 @@ var FeedbackLayer = class {
     this.comboDisplay.textContent = "";
     this.nudgeKeys.clear();
     this.resetStats();
+  }
+  /** Get accuracy as 0-1 based on judgment windows */
+  getAccuracy() {
+    const { perfect, great, good, miss } = this.stats;
+    const total = perfect + great + good + miss;
+    if (total === 0) return 0;
+    const weightedScore = perfect * 1 + great * 0.75 + good * 0.5;
+    return weightedScore / total;
+  }
+  /** Get letter ranking based on accuracy */
+  getRanking() {
+    const accuracy = this.getAccuracy();
+    if (accuracy >= 0.95) return "S";
+    if (accuracy >= 0.85) return "A";
+    if (accuracy >= 0.7) return "B";
+    if (accuracy >= 0.55) return "C";
+    if (accuracy >= 0.4) return "D";
+    return "F";
+  }
+  /** Play celebration animation (confetti burst) */
+  playCelebration() {
+    const cx = this.width / 2;
+    const cy = this.height / 2;
+    for (let i = 0; i < 5; i++) {
+      this.particles.emitBurst(cx, cy, "perfect", "confetti", 1.5);
+    }
+    this.particles.addEdgeGlow("#00e5ff", 0.6, 1e3);
+    this.particles.addEdgeGlow("#76ff03", 0.4, 1200);
   }
   resize(width, height) {
     this.width = width;

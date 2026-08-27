@@ -188,6 +188,75 @@
       opacity: 0.5;
     }
 
+    /* Results overlay */
+    .results-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(13,13,26,0.95);
+      z-index: 100;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+    }
+    .results-content {
+      text-align: center;
+      max-width: 400px;
+    }
+    .results-content h2 {
+      margin: 0 0 20px 0;
+      font-size: 28px;
+      font-weight: 700;
+      color: var(--accent);
+    }
+    .results-stats {
+      background: var(--surface);
+      border-radius: 12px;
+      padding: 20px;
+      margin-bottom: 20px;
+      border: 1px solid rgba(255,255,255,0.08);
+    }
+    .stat-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 8px 0;
+      border-bottom: 1px solid rgba(255,255,255,0.06);
+    }
+    .stat-row:last-child {
+      border-bottom: none;
+    }
+    .stat-label {
+      color: var(--muted);
+      font-size: 13px;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+    .stat-value {
+      font-size: 18px;
+      font-weight: 700;
+      color: var(--text);
+    }
+    .ranking {
+      font-size: 32px;
+      font-weight: 900;
+    }
+    .ranking-s { color: #00e5ff; text-shadow: 0 0 20px rgba(0,229,255,0.5); }
+    .ranking-a { color: #76ff03; text-shadow: 0 0 20px rgba(118,255,3,0.5); }
+    .ranking-b { color: #ffea00; text-shadow: 0 0 20px rgba(255,234,0,0.5); }
+    .ranking-c { color: #ff9100; }
+    .ranking-d { color: #ff1744; }
+    .ranking-f { color: #ff1744; opacity: 0.5; }
+    .judgments {
+      flex-wrap: wrap;
+      gap: 8px;
+      font-size: 12px;
+    }
+    .judgement.perfect { color: #00e5ff; }
+    .judgement.great { color: #76ff03; }
+    .judgement.good { color: #ffea00; }
+    .judgement.miss { color: #ff1744; }
+
     /* Onboarding overlay */
     .onboarding {
       position: fixed;
@@ -312,6 +381,34 @@
     </div>
 
     <p class="hint">Press <kbd>Space</kbd> for spaces. <kbd>Esc</kbd> to restart.</p>
+  </div>
+
+  <!-- Results overlay -->
+  <div class="results-overlay" id="results-overlay" style="display: none;">
+    <div class="results-content">
+      <h2>Song Complete!</h2>
+      <div class="results-stats">
+        <div class="stat-row">
+          <span class="stat-label">Accuracy</span>
+          <span class="stat-value" id="results-accuracy">0%</span>
+        </div>
+        <div class="stat-row">
+          <span class="stat-label">Rank</span>
+          <span class="stat-value ranking" id="results-ranking">F</span>
+        </div>
+        <div class="stat-row">
+          <span class="stat-label">Max Combo</span>
+          <span class="stat-value" id="results-combo">0x</span>
+        </div>
+        <div class="stat-row judgments">
+          <span class="judgement perfect">Perfect: <span id="results-perfect">0</span></span>
+          <span class="judgement great">Great: <span id="results-great">0</span></span>
+          <span class="judgement good">Good: <span id="results-good">0</span></span>
+          <span class="judgement miss">Miss: <span id="results-miss">0</span></span>
+        </div>
+      </div>
+      <button id="results-replay" class="large">▶ Play Again</button>
+    </div>
   </div>
 
   <!-- Onboarding overlay (hidden by default, shown via How to Play button) -->
@@ -544,30 +641,59 @@
       // Detach judge from bus so no more events reach it
       if (judge) judge.detach();
 
-      // Null out old judge so any queued events are ignored
+      // Calculate final accuracy from feedback layer stats
+      const accuracy = feedbackLayer.getAccuracy();
+      const ranking = feedbackLayer.getRanking();
+
+      // Show results overlay
+      showResultsOverlay(finalCombo, totalNotes, accuracy, ranking);
+
+      // Stop feedback animation but preserve stats display
+      feedbackLayer.stop();
+
+      // Null out references to prevent orphaned events from old game
       judge = null;
       normBus = null;
       rawBus = null;
-
-      // Stop feedback but preserve stats until next game
-      feedbackLayer.stop();
       gameActive = false;
       document.getElementById('status-state').textContent = 'complete';
 
       const results = {
         title: contentInput.value,
         artist: 'Typejoy',
-        score: 0,
+        score: Math.round(accuracy * 100),
         maxCombo: finalCombo,
-        totalNotes: totalNotes,
-        judgments: { perfect: 0, great: 0, good: 0, miss: 0 },
-        accuracy: 0,
+        totalNotes,
+        judgments: { ...feedbackLayer.judgmentCounts },
+        accuracy,
         passed: true,
         duration: 0,
       };
       debugPlugin.onSongComplete(results);
       debugPlugin.onGameEnd(results);
       renderCharacterSequence(beatMap.length);
+    }
+
+    function showResultsOverlay(maxCombo, totalNotes, accuracy, ranking) {
+      const overlay = document.getElementById('results-overlay');
+      if (!overlay) return;
+
+      document.getElementById('results-accuracy').textContent = `${(accuracy * 100).toFixed(1)}%`;
+      document.getElementById('results-ranking').textContent = ranking;
+      document.getElementById('results-ranking').className = `ranking ranking-${ranking.toLowerCase()}`;
+      document.getElementById('results-combo').textContent = `${maxCombo}x`;
+      document.getElementById('results-perfect').textContent = feedbackLayer.judgmentCounts.perfect;
+      document.getElementById('results-great').textContent = feedbackLayer.judgmentCounts.great;
+      document.getElementById('results-good').textContent = feedbackLayer.judgmentCounts.good;
+      document.getElementById('results-miss').textContent = feedbackLayer.judgmentCounts.miss;
+
+      overlay.style.display = 'flex';
+      feedbackLayer.playCelebration();
+    }
+
+    function hideResultsOverlay() {
+      const overlay = document.getElementById('results-overlay');
+      if (overlay) overlay.style.display = 'none';
     }
 
     function updateStatus() {
@@ -593,13 +719,19 @@
     });
 
     // ── Event Listeners ───────────────────────────────────────────────────
-    bpmSlider.addEventListener('input', () => {
-      bpmVal.textContent = bpmSlider.value;
-    });
-
     startBtn.addEventListener('click', () => {
+      hideResultsOverlay();
       startGame();
     });
+
+    // Results overlay replay button
+    const resultsReplayBtn = document.getElementById('results-replay');
+    if (resultsReplayBtn) {
+      resultsReplayBtn.addEventListener('click', () => {
+        hideResultsOverlay();
+        startGame();
+      });
+    }
 
     // How to Play button shows the onboarding overlay
     const howToPlayBtn = document.getElementById('how-to-play-btn');
