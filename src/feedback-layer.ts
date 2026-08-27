@@ -46,6 +46,9 @@ export class FeedbackLayer implements FeedbackLayerInterface {
   private statsDisplay: HTMLElement | null = null;
   private stats = { perfect: 0, great: 0, good: 0, miss: 0 };
 
+  // Judge reference (set via setJudge) for expected-key indicator + ring collapse
+  private judge: { getCurrentNote: () => BeatNote | undefined; getNextNotes: (count: number) => Array<{ note: BeatNote; timeUntilHit: number }>; getSongTime: () => number; beatMap: { notes: BeatNote[] } } | null = null;
+
   // State
   private maxComboReached: number = 0;
   private nudgeKeys: Map<string, { note: Note; startTime: number }> = new Map();

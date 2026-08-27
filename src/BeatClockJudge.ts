@@ -310,7 +310,7 @@ export class BeatClockJudge {
     for (const fn of this.judgmentListeners) fn(event);
 
     // Emit to plugins
-    this.hooks.onMiss?.(evt.char, expected.key, delta);
+    this.hooks.onMiss?.(evt.char, expected.key, delta, expected);
     this.hooks.onComboBreak?.(previousCombo);
     this.hooks.onCombo?.(0, 1);
   }

@@ -450,10 +450,11 @@
           feedbackLayer.markNoteJudged(event.note, event.judgment);
           updateStatus();
         },
-        onMiss: (key, expectedKey, delta) => {
+        onMiss: (key, expectedKey, delta, note) => {
           if (judge !== newJudge) return;
           debugPlugin.onMiss(key, expectedKey);
           feedbackLayer.renderMiss(key, expectedKey);
+          if (note) feedbackLayer.markNoteJudged(note, 'miss');
           updateStatus();
         },
         onNoteStale: (note) => {

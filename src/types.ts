@@ -148,7 +148,7 @@ export const TIMING_WINDOWS: Record<Difficulty, TimingWindows> = {
 
 export interface PluginHooks {
   onHit?(event: JudgmentEvent): void;
-  onMiss?(key: string, expectedKey: string, delta: number): void;
+  onMiss?(key: string, expectedKey: string, delta: number, note?: BeatNote): void;
   onWrongKey?(key: string, expectedKey: string): void;
   onNoteStale?(note: BeatNote): void;
   onCombo?(count: number, multiplier: number): void;
