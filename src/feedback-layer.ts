@@ -42,17 +42,6 @@ export class FeedbackLayer implements FeedbackLayerInterface {
   private comboDisplay: HTMLElement;
   private width: number;
   private height: number;
-
-  // Judge reference (for expected-key indicator)
-  private judge: { getCurrentNote: () => BeatNote | undefined; getNextNote: (ms?: number) => BeatNote | undefined } | null = null;
-
-  // Expected-key indicator elements
-  private expectedKeyIndicator: HTMLElement | null = null;
-  private expectedKeyLabel: HTMLElement | null = null;
-
-  // Approach ring canvas
-  private approachRingCanvas: HTMLCanvasElement;
-
   // Stats display (always visible, not part of debug plugin)
   private statsDisplay: HTMLElement | null = null;
   private stats = { perfect: 0, great: 0, good: 0, miss: 0 };

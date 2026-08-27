@@ -32,8 +32,9 @@ const TIMING_WINDOWS: Record<Difficulty, number> = {
   expert: 80,
 };
 
-/** Lead-in time before the first note (ms) — gives players time to prepare. */
-const LEAD_IN_MS = 3000;
+/** Lead-in time before the first note (ms) — gives players time to prepare.
+ *  Matches the easy preempt time so the first approach ring is visible immediately. */
+const LEAD_IN_MS = 1500;
 
 /** Common letters that get doubled notes on hard difficulty. */
 const COMMON_LETTERS = new Set(['e', 't', 'a', 'o', 'i', 'n', 's', 'r']);

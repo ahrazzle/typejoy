@@ -545,7 +545,7 @@ var TIMING_WINDOWS2 = {
   hard: 150,
   expert: 80
 };
-var LEAD_IN_MS = 3e3;
+var LEAD_IN_MS = 1500;
 var COMMON_LETTERS = /* @__PURE__ */ new Set(["e", "t", "a", "o", "i", "n", "s", "r"]);
 function effectiveBpm(options) {
   if (options.wordsPerMinute != null && options.wordsPerMinute > 0) {
@@ -1724,13 +1724,6 @@ var FeedbackLayer = class {
   comboDisplay;
   width;
   height;
-  // Judge reference (for expected-key indicator)
-  judge = null;
-  // Expected-key indicator elements
-  expectedKeyIndicator = null;
-  expectedKeyLabel = null;
-  // Approach ring canvas
-  approachRingCanvas;
   // Stats display (always visible, not part of debug plugin)
   statsDisplay = null;
   stats = { perfect: 0, great: 0, good: 0, miss: 0 };

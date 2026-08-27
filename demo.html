@@ -434,6 +434,9 @@
       debugPlugin = new DebugPlugin();
       debugPlugin.setFeedbackLayer(feedbackLayer);
 
+      // Reset stats for new game
+      feedbackLayer.resetStats();
+
       // Create new bus + judge
       rawBus = new RawBus(window);
       normBus = new NormalizedBus(rawBus);
@@ -543,9 +546,8 @@
       normBus = null;
       rawBus = null;
 
-      // Stop feedback and reset state
+      // Stop feedback but preserve stats until next game
       feedbackLayer.stop();
-      feedbackLayer.reset();
       gameActive = false;
       document.getElementById('status-state').textContent = 'complete';
 
