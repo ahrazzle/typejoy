@@ -682,10 +682,10 @@
       document.getElementById('results-ranking').textContent = ranking;
       document.getElementById('results-ranking').className = `ranking ranking-${ranking.toLowerCase()}`;
       document.getElementById('results-combo').textContent = `${maxCombo}x`;
-      document.getElementById('results-perfect').textContent = feedbackLayer.judgmentCounts.perfect;
-      document.getElementById('results-great').textContent = feedbackLayer.judgmentCounts.great;
-      document.getElementById('results-good').textContent = feedbackLayer.judgmentCounts.good;
-      document.getElementById('results-miss').textContent = feedbackLayer.judgmentCounts.miss;
+      document.getElementById('results-perfect').textContent = feedbackLayer.stats.perfect;
+      document.getElementById('results-great').textContent = feedbackLayer.stats.great;
+      document.getElementById('results-good').textContent = feedbackLayer.stats.good;
+      document.getElementById('results-miss').textContent = feedbackLayer.stats.miss;
 
       overlay.style.display = 'flex';
       feedbackLayer.playCelebration();

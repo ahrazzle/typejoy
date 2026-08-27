@@ -572,6 +572,11 @@ var BeatMapGenerator = class {
     const window2 = TIMING_WINDOWS2[options.difficulty];
     const chars = Array.from(content);
     const notes = [];
+    notes.push({
+      key: " ",
+      time: LEAD_IN_MS[options.difficulty] / 2,
+      window: TIMING_WINDOWS2[options.difficulty]
+    });
     for (let i = 0; i < chars.length; i++) {
       const key = chars[i];
       if (shouldSkip(key, options.difficulty, i)) {
@@ -1696,7 +1701,7 @@ var ApproachRingSystem = class {
   }
   /** Get ring alpha based on proximity (faint far, bright near) */
   getRingAlpha(progress) {
-    return 0.3 + progress * 0.7;
+    return 0.6 + progress * 0.4;
   }
   /** Start the animation loop */
   start() {

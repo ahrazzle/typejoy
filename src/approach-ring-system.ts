@@ -291,8 +291,9 @@ export class ApproachRingSystem {
 
   /** Get ring alpha based on proximity (faint far, bright near) */
   private getRingAlpha(progress: number): number {
-    // Far notes: 30% opacity, near notes: 100% opacity
-    return 0.3 + progress * 0.7;
+    // Far notes: 60% opacity, near notes: 100% opacity
+    // Higher minimum so the first ring is clearly visible at game start
+    return 0.6 + progress * 0.4;
   }
 
   /** Start the animation loop */

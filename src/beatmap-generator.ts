@@ -80,6 +80,13 @@ export class BeatMapGenerator {
     const chars = Array.from(content);
     const notes: Note[] = [];
 
+    // Add a ghost note before the content as a temp fix for first-key ring visibility
+    notes.push({
+      key: ' ',
+      time: LEAD_IN_MS[options.difficulty] / 2,
+      window: TIMING_WINDOWS[options.difficulty],
+    });
+
     for (let i = 0; i < chars.length; i++) {
       const key = chars[i];
 
