@@ -572,11 +572,6 @@ var BeatMapGenerator = class {
     const window2 = TIMING_WINDOWS2[options.difficulty];
     const chars = Array.from(content);
     const notes = [];
-    notes.push({
-      key: " ",
-      time: LEAD_IN_MS[options.difficulty] / 2,
-      window: TIMING_WINDOWS2[options.difficulty]
-    });
     for (let i = 0; i < chars.length; i++) {
       const key = chars[i];
       if (shouldSkip(key, options.difficulty, i)) {
@@ -597,19 +592,18 @@ var BeatMapGenerator = class {
 function shouldSkip(key, difficulty, _index) {
   switch (difficulty) {
     case "easy":
+    case "medium":
     case "hard":
     case "expert":
       return false;
-    case "medium":
-      return key === " ";
     default:
       return false;
   }
 }
 function injectDoubledNotes(notes, beatInterval) {
   const halfBeat = Math.round(beatInterval / 2);
-  let inserted = 0;
-  for (let i = 0; i < notes.length; i++) {
+  const originalLength = notes.length;
+  for (let i = 0; i < originalLength; i++) {
     const note = notes[i];
     if (COMMON_LETTERS.has(note.key)) {
       const doubled = {
@@ -617,11 +611,10 @@ function injectDoubledNotes(notes, beatInterval) {
         time: note.time + halfBeat,
         window: note.window
       };
-      notes.splice(i + inserted + 1, 0, doubled);
-      inserted++;
-      i++;
+      notes.push(doubled);
     }
   }
+  notes.sort((a, b) => a.time - b.time);
 }
 
 // src/keyboard-layout.ts
@@ -1727,6 +1720,7 @@ var FeedbackLayer = class {
   theme;
   keyboardContainer;
   canvas;
+  approachRingCanvas;
   keyboard;
   particles;
   approachRings;
@@ -1737,6 +1731,9 @@ var FeedbackLayer = class {
   // Stats display (always visible, not part of debug plugin)
   statsDisplay = null;
   stats = { perfect: 0, great: 0, good: 0, miss: 0 };
+  // Expected-key indicator (floating keycap above target key)
+  expectedKeyIndicator = null;
+  expectedKeyLabel = null;
   // Judge reference (set via setJudge) for expected-key indicator + ring collapse
   judge = null;
   // State
@@ -1912,7 +1909,7 @@ var FeedbackLayer = class {
       this.keyboard.clearKeyHighlight(normalizedKey);
     }, 200);
   }
-  renderStale(note) {
+  renderStale(_note) {
   }
   renderCombo(count, _multiplier) {
     if (count > this.maxComboReached) {
@@ -2093,7 +2090,9 @@ var FeedbackLayer = class {
     }
     this.expectedKeyIndicator.style.opacity = "1";
     const displayKey = note.key === " " ? "\u2423" : note.key.toUpperCase();
-    this.expectedKeyLabel.textContent = displayKey.toUpperCase();
+    if (this.expectedKeyLabel) {
+      this.expectedKeyLabel.textContent = displayKey.toUpperCase();
+    }
     const lookupKey = note.key === " " ? "space" : note.key;
     const targetKeyEl = this.keyboard.getKeyElement(lookupKey);
     if (!targetKeyEl) return;
