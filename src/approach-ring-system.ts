@@ -111,7 +111,9 @@ export class ApproachRingSystem {
   private getKeyPosition(keyId: string): { x: number; y: number; width: number; height: number } | null {
     if (!this.keyboard || !this.container) return null;
 
-    const keyEl = this.keyboard.getKeyElement(keyId);
+    // Convert " " (space key from beat-map) to "space" (keyboard layout id)
+    const lookupKey = keyId === ' ' ? 'space' : keyId;
+    const keyEl = this.keyboard.getKeyElement(lookupKey);
     if (!keyEl) return null;
 
     const keyRect = keyEl.getBoundingClientRect();

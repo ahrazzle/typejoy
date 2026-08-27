@@ -53,6 +53,10 @@ export class FeedbackLayer implements FeedbackLayerInterface {
   // Approach ring canvas
   private approachRingCanvas: HTMLCanvasElement;
 
+  // Stats display (always visible, not part of debug plugin)
+  private statsDisplay: HTMLElement | null = null;
+  private stats = { perfect: 0, great: 0, good: 0, miss: 0 };
+
   // State
   private maxComboReached: number = 0;
   private nudgeKeys: Map<string, { note: Note; startTime: number }> = new Map();
@@ -160,8 +164,41 @@ export class FeedbackLayer implements FeedbackLayerInterface {
     this.comboDisplay.style.transition = 'opacity 200ms ease, transform 200ms ease';
     this.container.appendChild(this.comboDisplay);
 
+    // Stats display (top-left) — always visible, independent of debug plugin
+    this.statsDisplay = document.createElement('div');
+    this.statsDisplay.setAttribute('aria-hidden', 'true');
+    this.statsDisplay.style.position = 'absolute';
+    this.statsDisplay.style.top = '12px';
+    this.statsDisplay.style.left = '12px';
+    this.statsDisplay.style.fontFamily = 'system-ui, -apple-system, sans-serif';
+    this.statsDisplay.style.fontSize = '12px';
+    this.statsDisplay.style.color = 'rgba(255,255,255,0.7)';
+    this.statsDisplay.style.zIndex = '3';
+    this.statsDisplay.style.pointerEvents = 'none';
+    this.statsDisplay.style.lineHeight = '1.5';
+    this.statsDisplay.style.textShadow = '0 1px 3px rgba(0,0,0,0.6)';
+    this.container.appendChild(this.statsDisplay);
+    this.updateStatsDisplay();
+
     // Apply initial theme
     this.keyboard.applyTheme(this.theme, this.highContrast);
+  }
+
+  /** Increment and render the judgment stats (top-left) */
+  private updateStatsDisplay(): void {
+    if (!this.statsDisplay) return;
+    this.statsDisplay.innerHTML = `
+      <span style="color:#00e5ff">Perfect: ${this.stats.perfect}</span>
+      <span style="color:#76ff03;margin-left:8px">Great: ${this.stats.great}</span>
+      <span style="color:#ffea00;margin-left:8px">Good: ${this.stats.good}</span>
+      <span style="color:#ff1744;margin-left:8px">Miss: ${this.stats.miss}</span>
+    `;
+  }
+
+  /** Reset judgment stats (called at game start) */
+  resetStats(): void {
+    this.stats = { perfect: 0, great: 0, good: 0, miss: 0 };
+    this.updateStatsDisplay();
   }
 
   // ─────────────────────────────────────────────────────────────────────────
@@ -176,6 +213,10 @@ export class FeedbackLayer implements FeedbackLayerInterface {
 
     // Depress the key with spring physics
     this.keyboard.depressKey(normalizedKey);
+
+    // Track stats
+    this.stats[judgment]++;
+    this.updateStatsDisplay();
 
     // Emit ripple emanating across the keyboard surface
     this.particles.emitRipple(cx, cy, judgment);
@@ -215,6 +256,10 @@ export class FeedbackLayer implements FeedbackLayerInterface {
   renderMiss(key: string, _expectedKey: string): void {
     const normalizedKey = normalizeKey(key);
     const keyBounds = this.getKeyScreenBounds(normalizedKey);
+
+    // Track stats — wrong keys count as miss
+    this.stats.miss++;
+    this.updateStatsDisplay();
 
     // Wrong key: muted red flash + small shake + tiny ripple (deliberately underwhelming)
     this.keyboard.shakeKey(normalizedKey);
@@ -446,33 +491,36 @@ export class FeedbackLayer implements FeedbackLayerInterface {
     * based on how close the note is to its hit time.
     */
     private updateExpectedKeyIndicator(): void {
-    if (!this.judge || !this.expectedKeyIndicator) return;
+      if (!this.judge || !this.expectedKeyIndicator) return;
 
-    const note = this.judge.getCurrentNote();
-    if (!note) {
-      this.expectedKeyIndicator.style.opacity = '0';
-      return;
-    }
+      const note = this.judge.getCurrentNote();
+      if (!note) {
+        this.expectedKeyIndicator.style.opacity = '0';
+        return;
+      }
 
-    // Show the indicator
-    this.expectedKeyIndicator.style.opacity = '1';
-    this.expectedKeyLabel.textContent = note.key.toUpperCase();
+      // Show the indicator
+      this.expectedKeyIndicator.style.opacity = '1';
+      const displayKey = note.key === ' ' ? '␣' : note.key.toUpperCase();
+      this.expectedKeyLabel.textContent = displayKey.toUpperCase();
 
-    // Find the target key's position
-    const targetKeyEl = this.keyboard.getKeyElement(note.key);
-    if (!targetKeyEl) return;
+      // Find the target key's position (space → "space" mapping)
+      const lookupKey = note.key === ' ' ? 'space' : note.key;
+      const targetKeyEl = this.keyboard.getKeyElement(lookupKey);
+      if (!targetKeyEl) return;
 
-    const keyRect = targetKeyEl.getBoundingClientRect();
-    const containerRect = this.container.getBoundingClientRect();
-    const keyCenterX = keyRect.left - containerRect.left + keyRect.width / 2;
+      const keyRect = targetKeyEl.getBoundingClientRect();
+      const containerRect = this.container.getBoundingClientRect();
+      const keyCenterX = keyRect.left - containerRect.left + keyRect.width / 2;
 
-    // Position above the target key
-    this.expectedKeyIndicator.style.left = `${keyCenterX}px`;
-    this.expectedKeyIndicator.style.transform = 'translateX(-50%) translateY(0)';
+      // Position above the target key
+      this.expectedKeyIndicator.style.left = `${keyCenterX}px`;
+      this.expectedKeyIndicator.style.transform = 'translateX(-50%) translateY(0)';
     }
 
   private getKeyScreenBounds(keyId: string): DOMRect {
-    const keyEl = this.keyboard.getKeyElement(keyId);
+    const lookupKey = keyId === ' ' ? 'space' : keyId;
+    const keyEl = this.keyboard.getKeyElement(lookupKey);
     if (keyEl) {
       // The SVG element's bounding box is relative to the SVG viewBox
       // We need to convert to screen coordinates
@@ -525,6 +573,7 @@ export class FeedbackLayer implements FeedbackLayerInterface {
     this.comboDisplay.style.opacity = '0';
     this.comboDisplay.textContent = '';
     this.nudgeKeys.clear();
+    this.resetStats();
   }
 
   resize(width: number, height: number): void {
