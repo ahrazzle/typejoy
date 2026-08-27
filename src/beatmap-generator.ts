@@ -118,13 +118,11 @@ export class BeatMapGenerator {
 function shouldSkip(key: string, difficulty: Difficulty, _index: number): boolean {
   switch (difficulty) {
     case 'easy':
+    case 'medium':
     case 'hard':
     case 'expert':
+      // Never skip spaces — they are part of the user's content
       return false;
-    case 'medium':
-      // On medium, skip spaces — they are non-essential for rhythm feel
-      // and would otherwise double-count pauses between words.
-      return key === ' ';
     default:
       return false;
   }
@@ -141,9 +139,9 @@ function shouldSkip(key: string, difficulty: Difficulty, _index: number): boolea
  */
 function injectDoubledNotes(notes: Note[], beatInterval: number): void {
   const halfBeat = Math.round(beatInterval / 2);
-  let inserted = 0;
+  const originalLength = notes.length;
 
-  for (let i = 0; i < notes.length; i++) {
+  for (let i = 0; i < originalLength; i++) {
     const note = notes[i];
     if (COMMON_LETTERS.has(note.key)) {
       // Insert a doubled note at +half-beat.
@@ -152,12 +150,12 @@ function injectDoubledNotes(notes: Note[], beatInterval: number): void {
         time: note.time + halfBeat,
         window: note.window,
       };
-      notes.splice(i + inserted + 1, 0, doubled);
-      inserted++;
-      // Skip the note we just inserted so we don't double-count it.
-      i++;
+      notes.push(doubled);
     }
   }
+
+  // Sort by time so doubled notes are in correct position
+  notes.sort((a, b) => a.time - b.time);
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

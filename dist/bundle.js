@@ -592,19 +592,18 @@ var BeatMapGenerator = class {
 function shouldSkip(key, difficulty, _index) {
   switch (difficulty) {
     case "easy":
+    case "medium":
     case "hard":
     case "expert":
       return false;
-    case "medium":
-      return key === " ";
     default:
       return false;
   }
 }
 function injectDoubledNotes(notes, beatInterval) {
   const halfBeat = Math.round(beatInterval / 2);
-  let inserted = 0;
-  for (let i = 0; i < notes.length; i++) {
+  const originalLength = notes.length;
+  for (let i = 0; i < originalLength; i++) {
     const note = notes[i];
     if (COMMON_LETTERS.has(note.key)) {
       const doubled = {
@@ -612,11 +611,10 @@ function injectDoubledNotes(notes, beatInterval) {
         time: note.time + halfBeat,
         window: note.window
       };
-      notes.splice(i + inserted + 1, 0, doubled);
-      inserted++;
-      i++;
+      notes.push(doubled);
     }
   }
+  notes.sort((a, b) => a.time - b.time);
 }
 
 // src/keyboard-layout.ts

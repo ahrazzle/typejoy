@@ -138,11 +138,10 @@ console.log('\n[5] Difficulty-based note density');
   const easy = gen.generate(content, { bpm: 120, difficulty: 'easy' });
   assertEqual(easy.length, 8, 'Easy: all 8 chars kept');
 
-  // Medium: skip spaces.
+  // Medium: keep all characters (spaces are sacred user content).
   const medium = gen.generate(content, { bpm: 120, difficulty: 'medium' });
-  assertEqual(medium.length, 7, 'Medium: space skipped → 7 notes');
-  const hasSpace = medium.some(n => n.key === ' ');
-  assert(!hasSpace, 'Medium: no space notes present');
+  assertEqual(medium.length, 8, 'Medium: all 8 chars kept (spaces preserved)');
+  assert(medium.some(n => n.key === ' '), 'Medium: space notes present');
 
   // Hard: keep everything AND add doubled notes for common letters.
   const hard = gen.generate(content, { bpm: 120, difficulty: 'hard' });
@@ -150,11 +149,13 @@ console.log('\n[5] Difficulty-based note density');
   // common letters (hard doubles these): h, t, h, e, r, e → 6 common.
   // So 8 + 6 = 14 notes expected.
   assert(hard.length > 8, `Hard: doubled notes added (${hard.length} > 8)`);
+  // Max 2x per character — no exponential duplication.
+  assert(hard.length <= 16, `Hard: max 2x per char (${hard.length} <= 16)`);
 
   // Verify doubled note is at half-beat offset.
-  // Find a doubled 'e' note (common letter).
+  // 'hi there' has 2 'e's, each doubled once → 4 total (2 original + 2 doubled).
   const eNotes = hard.filter(n => n.key === 'e');
-  assert(eNotes.length >= 2, `Hard: 'e' appears ${eNotes.length} times (was 2, doubled)`);
+  assert(eNotes.length === 4, `Hard: 'e' appears 4 times (2 originals doubled once)`);
 
   // Window sizes differ by difficulty (current generator values).
   assertEqual(easy[0].window, 500, 'Easy window = 500ms');
