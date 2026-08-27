@@ -324,4 +324,10 @@ export interface FeedbackLayer {
   setPreemptTime(ms: number): void;
   /** Set how many upcoming notes to show approach rings for */
   setNoteCount(count: number): void;
+  /** Calculate accuracy as a weighted average (0.0 to 1.0) */
+  getAccuracy(): number;
+  /** Get letter ranking based on accuracy (S/A/B/C/D/F) */
+  getRanking(): string;
+  /** Play celebration animation on song completion */
+  playCelebration(): void;
 }

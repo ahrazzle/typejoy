@@ -572,6 +572,11 @@ var BeatMapGenerator = class {
     const window2 = TIMING_WINDOWS2[options.difficulty];
     const chars = Array.from(content);
     const notes = [];
+    notes.push({
+      key: " ",
+      time: LEAD_IN_MS[options.difficulty] / 2,
+      window: TIMING_WINDOWS2[options.difficulty]
+    });
     for (let i = 0; i < chars.length; i++) {
       const key = chars[i];
       if (shouldSkip(key, options.difficulty, i)) {
@@ -1696,7 +1701,7 @@ var ApproachRingSystem = class {
   }
   /** Get ring alpha based on proximity (faint far, bright near) */
   getRingAlpha(progress) {
-    return 0.3 + progress * 0.7;
+    return 0.6 + progress * 0.4;
   }
   /** Start the animation loop */
   start() {
@@ -2143,6 +2148,34 @@ var FeedbackLayer = class {
     this.comboDisplay.textContent = "";
     this.nudgeKeys.clear();
     this.resetStats();
+  }
+  /** Get accuracy as 0-1 based on judgment windows */
+  getAccuracy() {
+    const { perfect, great, good, miss } = this.stats;
+    const total = perfect + great + good + miss;
+    if (total === 0) return 0;
+    const weightedScore = perfect * 1 + great * 0.75 + good * 0.5;
+    return weightedScore / total;
+  }
+  /** Get letter ranking based on accuracy */
+  getRanking() {
+    const accuracy = this.getAccuracy();
+    if (accuracy >= 0.95) return "S";
+    if (accuracy >= 0.85) return "A";
+    if (accuracy >= 0.7) return "B";
+    if (accuracy >= 0.55) return "C";
+    if (accuracy >= 0.4) return "D";
+    return "F";
+  }
+  /** Play celebration animation (confetti burst) */
+  playCelebration() {
+    const cx = this.width / 2;
+    const cy = this.height / 2;
+    for (let i = 0; i < 5; i++) {
+      this.particles.emitBurst(cx, cy, "perfect", "confetti", 1.5);
+    }
+    this.particles.addEdgeGlow("#00e5ff", 0.6, 1e3);
+    this.particles.addEdgeGlow("#76ff03", 0.4, 1200);
   }
   resize(width, height) {
     this.width = width;
