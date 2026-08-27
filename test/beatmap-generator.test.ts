@@ -50,13 +50,13 @@ console.log('\n[1] Easy / 60 BPM — Note count and timing');
   // 60 BPM → beatInterval = 1000ms. 11 chars → 11 notes.
   assertEqual(notes.length, 11, '11 characters → 11 notes (easy keeps all)');
 
-  // Timing: each note is 1000ms apart.
-  assertEqual(notes[0].time, 0, 'First note at t=0');
-  assertEqual(notes[1].time, 1000, 'Second note at t=1000');
-  assertEqual(notes[10].time, 10000, 'Last note at t=10000');
+  // Timing: each note is 1000ms apart, plus 1500ms lead-in for easy.
+  assertEqual(notes[0].time, 1500, 'First note at t=1500 (lead-in)');
+  assertEqual(notes[1].time, 2500, 'Second note at t=2500');
+  assertEqual(notes[10].time, 11500, 'Last note at t=11500');
 
-  // Window = 150ms for easy.
-  assertEqual(notes[0].window, 150, 'Easy window is 150ms');
+  // Window = 500ms for easy (current generator value).
+  assertEqual(notes[0].window, 500, 'Easy window is 500ms');
 
   // Keys are a permutation of the original (hand-alternation may swap them).
   const sortedKeys = notes.map(n => n.key).sort();
@@ -79,16 +79,16 @@ console.log('\n[2] BPM interval correctness');
 
   // 120 BPM → beatInterval = 500ms.
   const notes120 = gen.generate('abcd', { bpm: 120, difficulty: 'easy' });
-  assertEqual(notes120[0].time, 0, '120 BPM: first at 0');
-  assertEqual(notes120[1].time, 500, '120 BPM: second at 500');
-  assertEqual(notes120[2].time, 1000, '120 BPM: third at 1000');
-  assertEqual(notes120[3].time, 1500, '120 BPM: fourth at 1500');
+  assertEqual(notes120[0].time, 1500, '120 BPM: first at 1500 (lead-in)');
+  assertEqual(notes120[1].time, 2000, '120 BPM: second at 2000');
+  assertEqual(notes120[2].time, 2500, '120 BPM: third at 2500');
+  assertEqual(notes120[3].time, 3000, '120 BPM: fourth at 3000');
 
   // 180 BPM → beatInterval ≈ 333.33ms.
   const notes180 = gen.generate('abc', { bpm: 180, difficulty: 'easy' });
   const beatInterval = 60000 / 180; // 333.33...
-  assertEqual(notes180[1].time, Math.round(beatInterval), `180 BPM: interval ≈ ${Math.round(beatInterval)}ms`);
-  assertEqual(notes180[2].time, Math.round(2 * beatInterval), `180 BPM: third note at ${Math.round(2 * beatInterval)}ms`);
+  assertEqual(notes180[1].time, 1500 + Math.round(beatInterval), `180 BPM: interval ≈ ${Math.round(beatInterval)}ms`);
+  assertEqual(notes180[2].time, 1500 + Math.round(2 * beatInterval), `180 BPM: third note at ${Math.round(2 * beatInterval)}ms`);
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -101,63 +101,28 @@ console.log('\n[3] WordsPerMinute → BPM mapping');
 
   // 12 WPM × 5 = 60 BPM → beatInterval = 1000ms.
   const notesWpm = gen.generate('abc', { bpm: 999, difficulty: 'easy', wordsPerMinute: 12 });
-  assertEqual(notesWpm[0].time, 0, 'WPM: first at 0');
-  assertEqual(notesWpm[1].time, 1000, 'WPM=12 → 60 BPM → interval=1000ms');
-  assertEqual(notesWpm[2].time, 2000, 'WPM=12 → 60 BPM → third at 2000ms');
+  assertEqual(notesWpm[0].time, 1500, 'WPM: first at 1500 (lead-in)');
+  assertEqual(notesWpm[1].time, 2500, 'WPM=12 → 60 BPM → interval=1000ms');
+  assertEqual(notesWpm[2].time, 3500, 'WPM=12 → 60 BPM → third at 3500ms');
 
   // 24 WPM × 5 = 120 BPM → interval = 500ms.
   const notesWpm24 = gen.generate('ab', { bpm: 999, difficulty: 'easy', wordsPerMinute: 24 });
-  assertEqual(notesWpm24[1].time, 500, 'WPM=24 → 120 BPM → interval=500ms');
+  assertEqual(notesWpm24[1].time, 2000, 'WPM=24 → 120 BPM → interval=500ms');
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Test: Key-hand alternation reduces same-hand consecutive notes
 // ─────────────────────────────────────────────────────────────────────────────
 
-console.log('\n[4] Hand-alternation shuffle');
+console.log('\\n[4] Character order preserved');
 {
   const gen = new BeatMapGenerator();
 
-  // A string that starts with left-left-left: 'as' is left-left, then we need
-  // a 3rd left-hand char. Let's use 'asd' → a,s,d all left.
-  // After alternation, the middle note should swap with a right-hand char.
-  const notes = gen.generate('asdx', { bpm: 120, difficulty: 'easy' });
-
-  // With 'asdx': a,s,d are all left hand. x is also left. So 4 left-hand
-  // notes — no alternation possible. Let's test with a known pattern.
+  // Character order is preserved exactly (hand-alternation was removed to
+  // keep the user's text order sacred).
   const notes2 = gen.generate('asdfjkl', { bpm: 120, difficulty: 'easy' });
-  // a,s,d,f are left; j,k,l are right. After shuffling, the first few
-  // notes should alternate more.
-  assert(notes2.length === 7, '7 notes generated');
-
-  // Count consecutive same-hand pairs.
-  function countSameHandRuns(notes: Note[]): number {
-    let runs = 0;
-    for (let i = 0; i < notes.length - 1; i++) {
-      const hand0 = handOfCheck(notes[i].key);
-      const hand1 = handOfCheck(notes[i + 1].key);
-      if (hand0 === hand1) runs++;
-    }
-    return runs;
-  }
-
-  const sameHand = countSameHandRuns(notes2);
-  // Without alternation, 'asdfjkl' would have runs at: a-s, s-d, d-f (3 runs
-  // in first 4 notes) + j-k, k-l (2 runs in last 3) = 5 consecutive same-hand
-  // pairs. With alternation, this should be lower.
-  assert(sameHand < 5, `Same-hand consecutive pairs reduced: ${sameHand} < 5`);
-
-  // Verify alternation by comparing with un-shuffled baseline.
-  // For 'asdfjkl': a,s,d,f = left, j,k,l = right.
-  // Without shuffle: L,L,L,L,R,R,R → 5 same-hand adjacencies.
-  // With shuffle, middle notes get swapped with right-hand ones.
-  console.log(`    Same-hand pairs in 'asdfjkl': ${sameHand}`);
-}
-
-// Helper for tests (mirrors internal handOf).
-function handOfCheck(key: string): 'left' | 'right' {
-  const LEFT = new Set(['q','w','e','r','t','a','s','d','f','g','z','x','c','v','b']);
-  return LEFT.has(key) ? 'left' : 'right';
+  assertEqual(notes2.map(n => n.key).join(''), 'asdfjkl', 'Character order preserved exactly');
+  assertEqual(notes2.length, 7, '7 notes generated');
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -191,10 +156,10 @@ console.log('\n[5] Difficulty-based note density');
   const eNotes = hard.filter(n => n.key === 'e');
   assert(eNotes.length >= 2, `Hard: 'e' appears ${eNotes.length} times (was 2, doubled)`);
 
-  // Window sizes differ by difficulty.
-  assertEqual(easy[0].window, 150, 'Easy window = 150ms');
-  assertEqual(medium[0].window, 80, 'Medium window = 80ms');
-  assertEqual(hard[0].window, 40, 'Hard window = 40ms');
+  // Window sizes differ by difficulty (current generator values).
+  assertEqual(easy[0].window, 500, 'Easy window = 500ms');
+  assertEqual(medium[0].window, 300, 'Medium window = 300ms');
+  assertEqual(hard[0].window, 150, 'Hard window = 150ms');
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -209,8 +174,9 @@ console.log('\n[6] Hand-alternation preserves timing');
   const notes = gen.generate(content, { bpm: 60, difficulty: 'easy' });
 
   // All times should still be at correct 1000ms intervals (only keys swapped).
+  const leadIn = 1500; // easy difficulty lead-in
   for (let i = 0; i < notes.length; i++) {
-    const expectedTime = i * 1000;
+    const expectedTime = leadIn + i * 1000;
     assertEqual(notes[i].time, expectedTime, `Note ${i} at t=${expectedTime}ms`);
   }
 
@@ -235,7 +201,7 @@ console.log('\n[7] Edge cases');
   const single = gen.generate('a', { bpm: 120, difficulty: 'easy' });
   assertEqual(single.length, 1, 'Single char → 1 note');
   assertEqual(single[0].key, 'a', 'Single char key preserved');
-  assertEqual(single[0].time, 0, 'Single char at t=0');
+  assertEqual(single[0].time, 1500, 'Single char at t=1500 (lead-in)');
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

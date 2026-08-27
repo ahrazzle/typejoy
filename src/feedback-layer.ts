@@ -35,6 +35,7 @@ export class FeedbackLayer implements FeedbackLayerInterface {
   private theme: ThemeDescriptor;
   private keyboardContainer: HTMLDivElement;
   private canvas: HTMLCanvasElement;
+  private approachRingCanvas: HTMLCanvasElement;
   private keyboard: SVGKeyboardRenderer;
   private particles: ParticleSystem;
   private approachRings: ApproachRingSystem;
@@ -45,6 +46,9 @@ export class FeedbackLayer implements FeedbackLayerInterface {
   // Stats display (always visible, not part of debug plugin)
   private statsDisplay: HTMLElement | null = null;
   private stats = { perfect: 0, great: 0, good: 0, miss: 0 };
+  // Expected-key indicator (floating keycap above target key)
+  private expectedKeyIndicator: HTMLElement | null = null;
+  private expectedKeyLabel: HTMLElement | null = null;
 
   // Judge reference (set via setJudge) for expected-key indicator + ring collapse
   private judge: { getCurrentNote: () => BeatNote | undefined; getNextNotes: (count: number) => Array<{ note: BeatNote; timeUntilHit: number }>; getSongTime: () => number; beatMap: { notes: BeatNote[] } } | null = null;
@@ -273,7 +277,7 @@ export class FeedbackLayer implements FeedbackLayerInterface {
     }, 200);
   }
 
-  renderStale(note: Note): void {
+  renderStale(_note: Note): void {
     // Don't add nudge for stale notes — the cursor has already advanced past them.
     // Nudges are only for the current expected key (handled in updateNudges).
   }
@@ -499,7 +503,9 @@ export class FeedbackLayer implements FeedbackLayerInterface {
       // Show the indicator
       this.expectedKeyIndicator.style.opacity = '1';
       const displayKey = note.key === ' ' ? '␣' : note.key.toUpperCase();
-      this.expectedKeyLabel.textContent = displayKey.toUpperCase();
+      if (this.expectedKeyLabel) {
+        this.expectedKeyLabel.textContent = displayKey.toUpperCase();
+      }
 
       // Find the target key's position (space → "space" mapping)
       const lookupKey = note.key === ' ' ? 'space' : note.key;

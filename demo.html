@@ -407,7 +407,10 @@
           <span class="judgement miss">Miss: <span id="results-miss">0</span></span>
         </div>
       </div>
-      <button id="results-replay" class="large">▶ Play Again</button>
+      <div style="display: flex; gap: 8px;">
+        <button id="results-replay" class="large">▶ Play Again</button>
+        <button id="results-change-setup" class="secondary large">Change Setup</button>
+      </div>
     </div>
   </div>
 
@@ -719,6 +722,10 @@
     });
 
     // ── Event Listeners ───────────────────────────────────────────────────
+    bpmSlider.addEventListener('input', () => {
+      bpmVal.textContent = bpmSlider.value;
+    });
+
     startBtn.addEventListener('click', () => {
       hideResultsOverlay();
       startGame();
@@ -730,6 +737,14 @@
       resultsReplayBtn.addEventListener('click', () => {
         hideResultsOverlay();
         startGame();
+      });
+    }
+
+    // Results overlay change setup button
+    const resultsChangeSetupBtn = document.getElementById('results-change-setup');
+    if (resultsChangeSetupBtn) {
+      resultsChangeSetupBtn.addEventListener('click', () => {
+        hideResultsOverlay();
       });
     }
 
