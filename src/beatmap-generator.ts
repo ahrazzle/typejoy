@@ -41,9 +41,6 @@ const LEAD_IN_MS: Record<Difficulty, number> = {
   expert: 350,
 };
 
-/** Common letters that get doubled notes on hard difficulty. */
-const COMMON_LETTERS = new Set(['e', 't', 'a', 'o', 'i', 'n', 's', 'r']);
-
 // ─────────────────────────────────────────────────────────────────────────────
 // Helpers
 // ─────────────────────────────────────────────────────────────────────────────
@@ -95,10 +92,9 @@ export class BeatMapGenerator {
       });
     }
 
-    // ── Step 2: Hard difficulty — double notes for common letters ─────────
-    if (options.difficulty === 'hard') {
-      injectDoubledNotes(notes, beatInterval);
-    }
+    // ── Step 2: Difficulty scaling (timing windows only) ──────────────────
+    // Hard/expert use tighter timing windows; character order is sacred.
+    // No note doubling — that belongs in rhythm games, not typing.
 
     return notes;
   }
@@ -126,36 +122,6 @@ function shouldSkip(key: string, difficulty: Difficulty, _index: number): boolea
     default:
       return false;
   }
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Step 2 — Doubled notes (hard difficulty)
-// ─────────────────────────────────────────────────────────────────────────────
-
-/**
- * For hard difficulty, inserts an extra note for common letters. The doubled
- * note is placed one half-beat after the original so it feels like a quick
- * tap on the same key.
- */
-function injectDoubledNotes(notes: Note[], beatInterval: number): void {
-  const halfBeat = Math.round(beatInterval / 2);
-  const originalLength = notes.length;
-
-  for (let i = 0; i < originalLength; i++) {
-    const note = notes[i];
-    if (COMMON_LETTERS.has(note.key)) {
-      // Insert a doubled note at +half-beat.
-      const doubled: Note = {
-        key: note.key,
-        time: note.time + halfBeat,
-        window: note.window,
-      };
-      notes.push(doubled);
-    }
-  }
-
-  // Sort by time so doubled notes are in correct position
-  notes.sort((a, b) => a.time - b.time);
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

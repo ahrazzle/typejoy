@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <meta http-equiv="cache-control" content="no-cache, no-store, must-revalidate" />
-  <title>Typejoy — Framework Validation</title>
+  <title>Typejoy</title>
   <style>
     :root {
       --bg: #0d0d1a;
@@ -179,6 +179,21 @@
       background: rgba(118,255,3,0.1);
       color: #76ff03;
     }
+    .char-box.perfect {
+      border-color: #00e5ff;
+      background: rgba(0,229,255,0.15);
+      color: #00e5ff;
+    }
+    .char-box.great {
+      border-color: #76ff03;
+      background: rgba(118,255,3,0.1);
+      color: #76ff03;
+    }
+    .char-box.good {
+      border-color: #ffea00;
+      background: rgba(255,234,0,0.1);
+      color: #ffea00;
+    }
     .char-box.miss {
       border-color: #ff1744;
       background: rgba(255,23,68,0.1);
@@ -327,8 +342,8 @@
   </style>
 </head>
 <body>
-  <h1>Typejoy — Framework Validation</h1>
-  <p class="subtitle">Type the highlighted keys to the beat. Wrong keys are silently ignored. Timing accuracy = score.</p>
+  <h1>Typejoy</h1>
+  <p class="subtitle">Type the highlighted keys to the beat. Timing accuracy = score.</p>
 
   <div class="demo-layout">
     <!-- Stage on top -->
@@ -386,7 +401,7 @@
   <!-- Results overlay -->
   <div class="results-overlay" id="results-overlay" style="display: none;">
     <div class="results-content">
-      <h2>Song Complete!</h2>
+      <h2>Round Complete!</h2>
       <div class="results-stats">
         <div class="stat-row">
           <span class="stat-label">Accuracy</span>
@@ -452,6 +467,7 @@
     let startTime = 0;
     let tickHandle = null;
     let onboardingComplete = false;
+    const noteJudgments = []; // track judgment per note for color coding
 
     const stage = document.getElementById('stage');
     const contentInput = document.getElementById('content');
@@ -482,7 +498,10 @@
       const notes = beatMap.notes;
       const html = notes.map((note, i) => {
         let cls = 'char-box';
-        if (i < cursor) cls += ' hit';
+        if (i < cursor) {
+          const j = noteJudgments[i];
+          cls += j ? ` ${j}` : ' hit';
+        }
         else if (i === cursor) cls += ' next';
         else if (i < cursor + 5) cls += ' upcoming';
         else return '';
@@ -536,6 +555,7 @@
 
       // Reset stats for new game
       feedbackLayer.resetStats();
+      noteJudgments.length = 0;
 
       // Create new bus + judge
       rawBus = new RawBus(window);
@@ -548,13 +568,19 @@
           debugPlugin.onHit(event.judgment, event.key, event.delta);
           feedbackLayer.renderHit(event.judgment, event.key, event.delta);
           feedbackLayer.markNoteJudged(event.note, event.judgment);
+          const idx = beatMap.notes.indexOf(event.note);
+          if (idx >= 0) noteJudgments[idx] = event.judgment;
           updateStatus();
         },
         onMiss: (key, expectedKey, delta, note) => {
           if (judge !== newJudge) return;
           debugPlugin.onMiss(key, expectedKey);
           feedbackLayer.renderMiss(key, expectedKey);
-          if (note) feedbackLayer.markNoteJudged(note, 'miss');
+          if (note) {
+            feedbackLayer.markNoteJudged(note, 'miss');
+            const idx = beatMap.notes.indexOf(note);
+            if (idx >= 0) noteJudgments[idx] = 'miss';
+          }
           updateStatus();
         },
         onNoteStale: (note) => {
@@ -562,6 +588,8 @@
           debugPlugin.onNoteStale(note);
           feedbackLayer.renderStale(note);
           feedbackLayer.markNoteJudged(note, 'miss');
+          const idx = beatMap.notes.indexOf(note);
+          if (idx >= 0) noteJudgments[idx] = 'miss';
           updateStatus();
         },
         onCombo: (count, multiplier) => {

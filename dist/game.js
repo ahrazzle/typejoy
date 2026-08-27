@@ -551,7 +551,6 @@ var LEAD_IN_MS = {
   hard: 600,
   expert: 350
 };
-var COMMON_LETTERS = /* @__PURE__ */ new Set(["e", "t", "a", "o", "i", "n", "s", "r"]);
 function effectiveBpm(options) {
   if (options.wordsPerMinute != null && options.wordsPerMinute > 0) {
     return options.wordsPerMinute * 5;
@@ -583,9 +582,6 @@ var BeatMapGenerator = class {
         window: window2
       });
     }
-    if (options.difficulty === "hard") {
-      injectDoubledNotes(notes, beatInterval);
-    }
     return notes;
   }
 };
@@ -599,22 +595,6 @@ function shouldSkip(key, difficulty, _index) {
     default:
       return false;
   }
-}
-function injectDoubledNotes(notes, beatInterval) {
-  const halfBeat = Math.round(beatInterval / 2);
-  const originalLength = notes.length;
-  for (let i = 0; i < originalLength; i++) {
-    const note = notes[i];
-    if (COMMON_LETTERS.has(note.key)) {
-      const doubled = {
-        key: note.key,
-        time: note.time + halfBeat,
-        window: note.window
-      };
-      notes.push(doubled);
-    }
-  }
-  notes.sort((a, b) => a.time - b.time);
 }
 
 // src/keyboard-layout.ts
