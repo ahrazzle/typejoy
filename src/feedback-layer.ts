@@ -315,6 +315,11 @@ export class FeedbackLayer implements FeedbackLayerInterface {
     this.approachRings.setPreemptTime(ms);
   }
 
+  /** Mark a note's approach ring as judged so it collapses on the hit frame */
+  markNoteJudged(note: BeatNote, judgment: 'perfect' | 'great' | 'good' | 'miss'): void {
+    this.approachRings.markJudged(note, judgment);
+  }
+
   /** Set how many upcoming notes to show approach rings for */
   setNoteCount(count: number): void {
     this.approachRings.setNoteCount(count);

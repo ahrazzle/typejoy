@@ -545,7 +545,12 @@ var TIMING_WINDOWS2 = {
   hard: 150,
   expert: 80
 };
-var LEAD_IN_MS = 1500;
+var LEAD_IN_MS = {
+  easy: 1500,
+  medium: 1e3,
+  hard: 600,
+  expert: 350
+};
 var COMMON_LETTERS = /* @__PURE__ */ new Set(["e", "t", "a", "o", "i", "n", "s", "r"]);
 function effectiveBpm(options) {
   if (options.wordsPerMinute != null && options.wordsPerMinute > 0) {
@@ -574,7 +579,7 @@ var BeatMapGenerator = class {
       }
       notes.push({
         key,
-        time: LEAD_IN_MS + Math.round(i * beatInterval),
+        time: LEAD_IN_MS[options.difficulty] + Math.round(i * beatInterval),
         window: window2
       });
     }
@@ -1652,7 +1657,7 @@ var ApproachRingSystem = class {
     }
   }
   renderJudgedRing(ctx, ring, songTime) {
-    const timeSinceHit = songTime - ring.hitTime;
+    const timeSinceHit = Math.max(0, songTime - ring.hitTime);
     const fadeProgress = Math.min(1, timeSinceHit / 200);
     if (fadeProgress >= 1) return;
     const alpha = 1 - fadeProgress;
@@ -1933,6 +1938,10 @@ var FeedbackLayer = class {
   /** Set approach ring preempt time (ms before hit when rings appear) */
   setPreemptTime(ms) {
     this.approachRings.setPreemptTime(ms);
+  }
+  /** Mark a note's approach ring as judged so it collapses on the hit frame */
+  markNoteJudged(note, judgment) {
+    this.approachRings.markJudged(note, judgment);
   }
   /** Set how many upcoming notes to show approach rings for */
   setNoteCount(count) {

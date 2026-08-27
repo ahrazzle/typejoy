@@ -447,6 +447,7 @@
           if (judge !== newJudge) return;
           debugPlugin.onHit(event.judgment, event.key, event.delta);
           feedbackLayer.renderHit(event.judgment, event.key, event.delta);
+          feedbackLayer.markNoteJudged(event.note, event.judgment);
           updateStatus();
         },
         onMiss: (key, expectedKey, delta) => {
@@ -459,6 +460,7 @@
           if (judge !== newJudge) return;
           debugPlugin.onNoteStale(note);
           feedbackLayer.renderStale(note);
+          feedbackLayer.markNoteJudged(note, 'miss');
           updateStatus();
         },
         onCombo: (count, multiplier) => {

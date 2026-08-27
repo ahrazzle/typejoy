@@ -32,9 +32,14 @@ const TIMING_WINDOWS: Record<Difficulty, number> = {
   expert: 80,
 };
 
-/** Lead-in time before the first note (ms) — gives players time to prepare.
- *  Matches the easy preempt time so the first approach ring is visible immediately. */
-const LEAD_IN_MS = 1500;
+/** Lead-in time before the first note (ms) — matched to each difficulty's
+ *  approach-ring preempt time so the first ring is visible at game start. */
+const LEAD_IN_MS: Record<Difficulty, number> = {
+  easy: 1500,
+  medium: 1000,
+  hard: 600,
+  expert: 350,
+};
 
 /** Common letters that get doubled notes on hard difficulty. */
 const COMMON_LETTERS = new Set(['e', 't', 'a', 'o', 'i', 'n', 's', 'r']);
@@ -85,7 +90,7 @@ export class BeatMapGenerator {
 
       notes.push({
         key,
-        time: LEAD_IN_MS + Math.round(i * beatInterval),
+        time: LEAD_IN_MS[options.difficulty] + Math.round(i * beatInterval),
         window,
       });
     }

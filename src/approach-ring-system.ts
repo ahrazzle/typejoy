@@ -240,7 +240,9 @@ export class ApproachRingSystem {
   }
 
   private renderJudgedRing(ctx: CanvasRenderingContext2D, ring: ApproachRing, songTime: number): void {
-    const timeSinceHit = songTime - ring.hitTime;
+    // Animate from judgment time — for early hits, clamp so the ring
+    // collapses on the hit frame instead of waiting for note.time.
+    const timeSinceHit = Math.max(0, songTime - ring.hitTime);
     const fadeProgress = Math.min(1, timeSinceHit / 200);
 
     if (fadeProgress >= 1) return;
