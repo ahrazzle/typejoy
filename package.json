@@ -1,14 +1,17 @@
 {
-  "name": "typejoy-eventbus",
+  "name": "typejoy",
   "version": "0.1.0",
-  "description": "Standalone event bus for the Typejoy rhythm-typing framework",
+  "description": "Typejoy — an open-source rhythm-typing game framework for kids. Guitar Hero / osu! / Beat Saber inspired: build typing games on a beat-matching engine with a keyboard input pipeline, timing judge, and shared feedback layer.",
   "type": "module",
   "scripts": {
     "test": "tsx test/eventbus.test.ts",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "build": "esbuild src/index.ts --bundle --outfile=dist/bundle.js --format=esm",
+    "docs": "node scripts/check-docs.mjs"
   },
   "devDependencies": {
     "tsx": "^4.19.0",
-    "typescript": "^5.6.0"
+    "typescript": "^5.6.0",
+    "esbuild": "^0.24.0"
   }
 }
