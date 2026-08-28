@@ -143,19 +143,11 @@ console.log('\n[5] Difficulty-based note density');
   assertEqual(medium.length, 8, 'Medium: all 8 chars kept (spaces preserved)');
   assert(medium.some(n => n.key === ' '), 'Medium: space notes present');
 
-  // Hard: keep everything AND add doubled notes for common letters.
+  // Hard: keep everything — no note doubling (character order is sacred).
   const hard = gen.generate(content, { bpm: 120, difficulty: 'hard' });
-  // 'hi there' → h,i,space,t,h,e,r,e
-  // common letters (hard doubles these): h, t, h, e, r, e → 6 common.
-  // So 8 + 6 = 14 notes expected.
-  assert(hard.length > 8, `Hard: doubled notes added (${hard.length} > 8)`);
-  // Max 2x per character — no exponential duplication.
-  assert(hard.length <= 16, `Hard: max 2x per char (${hard.length} <= 16)`);
-
-  // Verify doubled note is at half-beat offset.
-  // 'hi there' has 2 'e's, each doubled once → 4 total (2 original + 2 doubled).
-  const eNotes = hard.filter(n => n.key === 'e');
-  assert(eNotes.length === 4, `Hard: 'e' appears 4 times (2 originals doubled once)`);
+  // 'hi there' → 8 chars, all kept.
+  assertEqual(hard.length, 8, 'Hard: all 8 chars kept (no doubling)');
+  assertEqual(hard.map(n => n.key).join(''), content, 'Hard: character order preserved exactly');
 
   // Window sizes differ by difficulty (current generator values).
   assertEqual(easy[0].window, 500, 'Easy window = 500ms');

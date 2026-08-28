@@ -507,8 +507,8 @@ export class FeedbackLayer implements FeedbackLayerInterface {
         this.expectedKeyLabel.textContent = displayKey.toUpperCase();
       }
 
-      // Find the target key's position (space → "space" mapping)
-      const lookupKey = note.key === ' ' ? 'space' : note.key;
+      // Find the target key's position (space → "space", letters → lowercase)
+      const lookupKey = note.key === ' ' ? 'space' : note.key.toLowerCase();
       const targetKeyEl = this.keyboard.getKeyElement(lookupKey);
       if (!targetKeyEl) return;
 
@@ -522,7 +522,7 @@ export class FeedbackLayer implements FeedbackLayerInterface {
     }
 
   private getKeyScreenBounds(keyId: string): DOMRect {
-    const lookupKey = keyId === ' ' ? 'space' : keyId;
+    const lookupKey = keyId === ' ' ? 'space' : keyId.toLowerCase();
     const keyEl = this.keyboard.getKeyElement(lookupKey);
     if (keyEl) {
       // The SVG element's bounding box is relative to the SVG viewBox
