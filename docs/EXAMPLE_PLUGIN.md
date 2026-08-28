@@ -1,171 +1,99 @@
-# Typejoy — Example Plugin Walkthrough
+# Example Plugin: "Particle Pop"
 
-Build a complete, playable plugin game from scratch: **"Particle Pop"** — every Perfect hit spawns a burst of colored rings on a canvas; combo streaks tint the background. This exercises the full plugin contract with ~60 lines of real code.
+A complete, playable Typejoy plugin in ~60 lines. It consumes the framework's judged events and renders its own scene on top — no framework internals, no re-wiring. If you can run this, you can build any wrapper game.
 
----
+## Prereqs
 
-## Setup
+You've already run the quickstart from the README:
 
 ```bash
-git clone https://github.com/ahrazzle/typejoy.git
-cd typejoy
 npm install
 npx esbuild src/index.ts --bundle --outfile=dist/game.js --format=esm
 ```
 
-## The HTML
+## The whole plugin
 
-```html
-<!DOCTYPE html>
-<html>
-<head>
-  <title>Particle Pop</title>
-  <style>
-    body { background: #0d0d1a; margin: 0; }
-    #stage { width: 900px; height: 320px; margin: 40px auto; }
-  </style>
-</head>
-<body>
-  <div id="stage"></div>
-  <script type="module" src="game.js"></script>
-</body>
-</html>
-```
+```typescript
+import { createSession, GamePlugin } from './dist/game.js';
 
-## The game (game.js)
-
-```javascript
-import { createSession } from './dist/game.js';
-
-const stage = document.getElementById('stage');
-
-// ── Plugin state ──────────────────────────────────────────────
-let ctx = null;            // canvas 2d context (ours)
-let score = 0;
-let bestCombo = 0;
-let bgFlash = 0;           // background flash intensity 0..1
-
-// ── Our overlay canvas ────────────────────────────────────────
-function makeCanvas() {
-  const canvas = document.createElement('canvas');
-  canvas.style.cssText =
-    'position:absolute;inset:0;width:100%;height:100%;z-index:6;pointer-events:none;';
-  canvas.width = 900; canvas.height = 320;
-  stage.appendChild(canvas);
-  return canvas.getContext('2d');
-}
-
-// ── The plugin ────────────────────────────────────────────────
-const pop = {
-  onGameStart(config) {
-    score = 0; bestCombo = 0; bgFlash = 0;
-    ctx = makeCanvas();
-    // Draw a hint in the top-right
-    ctx.font = '16px system-ui';
-    ctx.fillStyle = '#fff';
-    ctx.fillText('Type the letters to pop them!', 640, 30);
-  },
-
-  onHit(judgment, key, delta) {
-    // Find where this key is on screen via the feedback layer
-    const fb = session.feedback;
-    const keyEl = fb.getKeyboardElement().querySelector(`[data-key="${key}"]`);
-    let x = 450, y = 200;
-    if (keyEl) {
-      const r = keyEl.getBoundingClientRect();
-      const s = stage.getBoundingClientRect();
-      x = r.left - s.left + r.width / 2;
-      y = r.top - s.top + r.height / 2;
-    }
-
-    // Draw judgment-colored rings
+// 1. Your plugin — implement the hooks you care about.
+//    Each hook receives the same events the framework already judged.
+const particlePop: GamePlugin = {
+  // A pop grows with every correct hit, colored by judgment.
+  onHit(judgment, _key, _delta) {
     const colors = { perfect: '#00e5ff', great: '#76ff03', good: '#ffea00' };
-    ctx.beginPath();
-    ctx.arc(x, y, judgment === 'perfect' ? 24 : 16, 0, Math.PI * 2);
-    ctx.strokeStyle = colors[judgment];
-    ctx.lineWidth = 3;
-    ctx.stroke();
-
-    // Perfect hits flash the background
-    if (judgment === 'perfect') bgFlash = 1;
+    spawnPop(colors[judgment] ?? '#fff');
   },
-
-  onMiss(key, expectedKey) {
-    ctx.font = '12px system-ui';
-    ctx.fillStyle = '#ff1744';
-    ctx.fillText('miss', 20, 60);
+  // A red flash for a wrong key.
+  onMiss(_key, _expectedKey) {
+    spawnPop('#ff1744');
   },
-
+  // The scene pulses as your streak grows.
   onCombo(count, multiplier) {
-    bestCombo = Math.max(bestCombo, count);
-    ctx.font = '20px system-ui';
-    ctx.fillStyle = '#fff';
-    ctx.clearRect(700, 40, 180, 40);
-    ctx.fillText(`${count}x (${multiplier}x)`, 700, 70);
+    document.body.style.background = `rgba(0, 229, 255, ${Math.min(count / 50, 0.3)})`;
+    console.log(`combo ${count} (${multiplier}x)`);
   },
-
-  onSongComplete(results) {
-    ctx.clearRect(0, 0, 900, 320);
-    ctx.font = '32px system-ui';
-    ctx.fillStyle = '#fff';
-    ctx.textAlign = 'center';
-    ctx.fillText(`Score: ${score}  Accuracy: ${(results.accuracy * 100).toFixed(0)}%`,
-      450, 140);
-    ctx.fillText(`Max Combo: ${bestCombo}`, 450, 180);
-    ctx.textAlign = 'left';
-  },
-
-  getCanvasContext() { return null; }, // we manage our own canvas
-  getFeedbackLayer() { return session.feedback; },
 };
 
-// ── Boot ──────────────────────────────────────────────────────
+// 2. One call wires the entire pipeline in the safe order.
+//    The keyboard, approach rings, particles, and stats come for free.
 const session = createSession({
-  container: stage,
-  content: 'pop goes the letters',
-  bpm: 80,
-  difficulty: 'easy',
-  hooks: pop,
+  container: document.getElementById('stage')!,
+  content: 'hello world',     // or any string a player typed
+  bpm: 60,
+  difficulty: 'easy',         // 'easy' | 'medium' | 'hard' | 'expert'
+  hooks: particlePop,         // <-- your plugin
 });
 
-// Background flash loop
-function loop() {
-  if (bgFlash > 0) {
-    ctx.fillStyle = `rgba(0,229,255,${bgFlash * 0.15})`;
-    ctx.fillRect(0, 0, 900, 320);
-    bgFlash *= 0.9;
-    if (bgFlash < 0.01) bgFlash = 0;
-  }
-  requestAnimationFrame(loop);
+// 3. Tear it down cleanly when the round ends.
+function onRoundEnd() {
+  session.destroy();          // stops buses, detaches judge, clears the DOM
 }
-requestAnimationFrame(loop);
 ```
 
-## What this exercises
+## The minimal DOM it needs
 
-| Hook | Used for |
+```html
+<div id="stage" style="width:900px; height:320px;"></div>
+<script type="module" src="./your-plugin.ts"></script>
+```
+
+That's it. The framework owns everything below your plugin — beat-map timing, keystroke capture, judgment, approach rings, and end-of-round stats.
+
+## The renderer hooks you get for free
+
+`createSession` returns `session.feedback` (a `FeedbackLayer`) and `session.judge`. You don't have to touch them, but when you want to draw your own game scene, this is what's available:
+
+| Object | Useful members |
 |---|---|
-| `onGameStart` | Canvas setup, state reset |
-| `onHit` | Judgment-colored rings at the key position |
-| `onMiss` | Miss feedback text |
-| `onCombo` | Combo counter drawing |
-| `onSongComplete` | Final score screen |
-| `getFeedbackLayer` | Accessing the keyboard element for positions |
+| `session.judge` | `getSongTime()`, `state.maxCombo`, `state.cursor` |
+| `session.feedback` | `getCanvasOverlay()` — draw your game on this canvas |
+| `session.songTime()` | ms since the round started (same clock as judgments) |
 
-## Running it
+Your plugin's own visuals (characters, vehicles, monsters) go on `getCanvasOverlay()`; the keyboard and its effects stay beneath it, already rendered by the framework.
+
+## Contract summary
+
+| Hook | Signature | Fires when |
+|---|---|---|
+| `onGameStart` | `(config: GameConfig) => void` | Round begins |
+| `onHit` | `(judgment, key, delta) => void` | Correct key inside a window |
+| `onMiss` | `(key, expectedKey) => void` | Correct key, wrong time |
+| `onWrongKey` | `(key, expectedKey) => void` | Wrong key pressed |
+| `onNoteStale` | `(note) => void` | Note passed without being hit |
+| `onCombo` | `(count, multiplier) => void` | Combo updated |
+| `onComboBreak` | `(previousCount) => void` | Combo reset |
+| `onStreakThreshold` | `(count) => void` | Combo crosses 10/25/50 |
+| `onSongComplete` | `(results) => void` | All notes resolved |
+| `onGameEnd` | `(results) => void` | Round ended |
+
+**Pitfall that used to bite:** never call `feedback.start()` yourself before `createSession` — it runs the animation loop before judge state exists. `createSession` handles the order internally, so you can't hit it.
+
+## Build + run
 
 ```bash
-python3 -m http.server 8000
-# open http://localhost:8000/your-folder/
+npx esbuild src/your-plugin.ts --bundle --outfile=dist/your-plugin.js --format=esm
+# open an HTML page that loads dist/your-plugin.js and contains #stage
 ```
 
-Type "pop goes the letters" — each correct key pops a colored ring; Perfect hits flash the background cyan. The framework handles the keyboard, approach rings, timing, and stats — your plugin only draws its own scene.
-
----
-
-## Extending the idea
-
-- Add a score increment in `onHit` (Perfect=100 × multiplier, Great=75, Good=50)
-- Use `onStreakThreshold` to trigger a full-screen particle wave at 10/25/50 combo
-- Use `onWrongKey` to spawn a red "shrink" effect at the wrong key
-- Swap the theme: `session.feedback.setTheme(customTheme)` for a different palette
+If you see keys depress, rings shrink, and pops spawn as you type — your plugin works. Swap the `hooks` visuals for a character, a car, or a monster and you have a wrapper game.
