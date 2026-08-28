@@ -401,7 +401,7 @@ var BeatClockJudge = class {
     if (delta < -this.windows.good) {
       return;
     }
-    if (evt.char !== expected.key) {
+    if (evt.char.toLowerCase() !== expected.key.toLowerCase()) {
       this.hooks.onWrongKey?.(evt.char, expected.key);
       return;
     }
@@ -585,7 +585,7 @@ var BeatMapGenerator = class {
     return notes;
   }
 };
-function shouldSkip(key, difficulty, _index) {
+function shouldSkip(_key, difficulty, _index) {
   switch (difficulty) {
     case "easy":
     case "medium":
@@ -1542,7 +1542,7 @@ var ApproachRingSystem = class {
   /** Get the screen position for a key */
   getKeyPosition(keyId) {
     if (!this.keyboard || !this.container) return null;
-    const lookupKey = keyId === " " ? "space" : keyId;
+    const lookupKey = keyId === " " ? "space" : keyId.toLowerCase();
     const keyEl = this.keyboard.getKeyElement(lookupKey);
     if (!keyEl) return null;
     const keyRect = keyEl.getBoundingClientRect();
@@ -2073,7 +2073,7 @@ var FeedbackLayer = class {
     if (this.expectedKeyLabel) {
       this.expectedKeyLabel.textContent = displayKey.toUpperCase();
     }
-    const lookupKey = note.key === " " ? "space" : note.key;
+    const lookupKey = note.key === " " ? "space" : note.key.toLowerCase();
     const targetKeyEl = this.keyboard.getKeyElement(lookupKey);
     if (!targetKeyEl) return;
     const keyRect = targetKeyEl.getBoundingClientRect();
@@ -2083,7 +2083,7 @@ var FeedbackLayer = class {
     this.expectedKeyIndicator.style.transform = "translateX(-50%) translateY(0)";
   }
   getKeyScreenBounds(keyId) {
-    const lookupKey = keyId === " " ? "space" : keyId;
+    const lookupKey = keyId === " " ? "space" : keyId.toLowerCase();
     const keyEl = this.keyboard.getKeyElement(lookupKey);
     if (keyEl) {
       const keyRect = keyEl.getBoundingClientRect();
