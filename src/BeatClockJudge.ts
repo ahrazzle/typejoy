@@ -229,7 +229,9 @@ export class BeatClockJudge {
       return;
     }
 
-    if (evt.char !== expected.key) {
+    // Case-insensitive comparison — a kid with caps lock on (or capitalizing
+    // the first letter, as taught) should still hit the note.
+    if (evt.char.toLowerCase() !== expected.key.toLowerCase()) {
       // WRONG KEY — emit onWrongKey hook for feedback, but don't advance cursor or break combo
       this.hooks.onWrongKey?.(evt.char, expected.key);
       return;

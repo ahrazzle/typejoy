@@ -401,7 +401,7 @@ var BeatClockJudge = class {
     if (delta < -this.windows.good) {
       return;
     }
-    if (evt.char !== expected.key) {
+    if (evt.char.toLowerCase() !== expected.key.toLowerCase()) {
       this.hooks.onWrongKey?.(evt.char, expected.key);
       return;
     }
@@ -572,7 +572,7 @@ var BeatMapGenerator = class {
     const chars = Array.from(content);
     const notes = [];
     for (let i = 0; i < chars.length; i++) {
-      const key = chars[i].toLowerCase();
+      const key = chars[i];
       if (shouldSkip(key, options.difficulty, i)) {
         continue;
       }

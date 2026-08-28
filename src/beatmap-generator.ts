@@ -78,7 +78,7 @@ export class BeatMapGenerator {
     const notes: Note[] = [];
 
     for (let i = 0; i < chars.length; i++) {
-      const key = chars[i].toLowerCase();
+      const key = chars[i];
 
       // Apply difficulty-based density filtering.
       if (shouldSkip(key, options.difficulty, i)) {
