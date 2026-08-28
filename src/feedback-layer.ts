@@ -336,7 +336,7 @@ export class FeedbackLayer implements FeedbackLayerInterface {
    * Provide a reference to the judge so the feedback layer can query the current
    * expected note and render a persistent expected-key indicator.
    */
-  setJudge(judge: { getCurrentNote: () => BeatNote | undefined; getNextNotes: (count: number) => Array<{ note: BeatNote; timeUntilHit: number }>; getSongTime: () => number; beatMap: { notes: BeatNote[] } }): void {
+  setJudge(judge: { getCurrentNote: () => BeatNote | undefined; getNextNotes: (count: number) => Array<{ note: BeatNote; timeUntilHit: number }>; getSongTime: () => number; getNotes: () => readonly BeatNote[] }): void {
     this.judge = judge;
     // Remove old indicator before creating new to prevent DOM accumulation
     if (this.expectedKeyIndicator) {

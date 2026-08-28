@@ -293,6 +293,10 @@ var BeatClockJudge = class {
   getCurrentPosition() {
     return this._cursor;
   }
+  /** Public accessor for the underlying beat-map notes (for approach rings). */
+  getNotes() {
+    return this.beatMap.notes;
+  }
   /**
    * Read-only accessor for the note at a given beat position.
    * Both the judge and the feedback layer can query this independently.
@@ -2441,6 +2445,50 @@ var DebugPlugin = class {
     this.logEl = null;
   }
 };
+
+// src/session.ts
+var LEAD_IN_MS2 = {
+  easy: 1500,
+  medium: 1e3,
+  hard: 600,
+  expert: 350
+};
+function createSession(options) {
+  const difficulty = options.difficulty ?? "easy";
+  const bpm = options.bpm ?? 60;
+  const feedback = new FeedbackLayer({
+    container: options.container,
+    ...options.feedback
+  });
+  const notes = new BeatMapGenerator().generate(options.content, { bpm, difficulty });
+  const beatMap = new StaticBeatMap(notes);
+  const judge = new BeatClockJudge(beatMap, { difficulty }, options.hooks);
+  feedback.setJudge(judge);
+  feedback.setPreemptTime(LEAD_IN_MS2[difficulty]);
+  const startTime = performance.now();
+  judge.setStartTime(startTime);
+  feedback.start();
+  const rawBus = new RawBus(window);
+  const normBus = new NormalizedBus(rawBus);
+  normBus.start();
+  judge.attach(normBus);
+  rawBus.start();
+  return {
+    judge,
+    feedback,
+    beatMap,
+    rawBus,
+    normBus,
+    songTime: () => performance.now() - startTime,
+    destroy: () => {
+      rawBus.stop();
+      normBus.stop();
+      judge.detach();
+      feedback.stop();
+      feedback.getContainer().replaceChildren();
+    }
+  };
+}
 export {
   BeatClockJudge,
   BeatMapGenerator,
@@ -2454,5 +2502,6 @@ export {
   SVGKeyboardRenderer,
   StaticBeatMap,
   buildKeyMap,
+  createSession,
   normalizeKey2 as normalizeKey
 };

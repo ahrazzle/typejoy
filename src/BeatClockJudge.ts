@@ -94,6 +94,11 @@ export class BeatClockJudge {
     return this._cursor;
   }
 
+  /** Public accessor for the underlying beat-map notes (for approach rings). */
+  getNotes(): readonly BeatNote[] {
+    return this.beatMap.notes;
+  }
+
   /**
    * Read-only accessor for the note at a given beat position.
    * Both the judge and the feedback layer can query this independently.

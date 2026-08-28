@@ -54,7 +54,7 @@ export class ApproachRingSystem {
   private missColor: string = '#ff1744';
 
   // External references (set by feedback layer)
-  judge: { getSongTime: () => number; beatMap: { notes: BeatNote[] }; getNextNotes: (count: number) => Array<{ note: BeatNote; timeUntilHit: number }> } | null = null;
+  judge: { getSongTime: () => number; getNotes: () => readonly BeatNote[]; getNextNotes: (count: number) => Array<{ note: BeatNote; timeUntilHit: number }> } | null = null;
   keyboard: { getKeyElement: (keyId: string) => SVGElement | null } | null = null;
   container: HTMLElement | null = null;
 

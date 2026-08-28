@@ -27,3 +27,4 @@ export { SVGKeyboardRenderer, KeyboardRendererOptions, RenderedKey } from './svg
 export { ParticleSystem } from './particle-system';
 export { QWERTY_LAYOUT, KeyDef, KeyboardLayout, buildKeyMap, normalizeKey } from './keyboard-layout';
 export { DebugPlugin } from './debug-plugin.js';
+export { createSession, SessionOptions, TypejoySession } from './session.js';
