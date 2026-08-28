@@ -19,7 +19,7 @@ npm install
 ### 2. Build the bundle
 
 ```bash
-npx esbuild src/index.ts --bundle --outfile=dist/bundle.js --format=esm
+npx esbuild src/index.ts --bundle --outfile=dist/game.js --format=esm
 ```
 
 ### 3. Create your first game session
@@ -27,7 +27,7 @@ npx esbuild src/index.ts --bundle --outfile=dist/bundle.js --format=esm
 ```html
 <div id="stage" style="width:900px;height:320px"></div>
 <script type="module">
-  import { createSession } from './dist/bundle.js';
+  import { createSession } from './dist/game.js';
 
   const session = createSession({
     container: document.getElementById('stage'),

@@ -1,6 +1,6 @@
 # Typejoy — API Reference
 
-All exports come from `dist/bundle.js` (built via `npx esbuild src/index.ts --bundle --outfile=dist/bundle.js --format=esm`).
+All exports come from `dist/game.js` (built via `npx esbuild src/index.ts --bundle --outfile=dist/game.js --format=esm`).
 
 ---
 

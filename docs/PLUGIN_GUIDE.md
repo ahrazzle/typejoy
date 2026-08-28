@@ -7,7 +7,7 @@ Build a custom game on top of the Typejoy framework. You write a plugin that con
 ## The 30-second version
 
 ```typescript
-import { createSession, GamePlugin } from './dist/bundle.js';
+import { createSession, GamePlugin } from './dist/game.js';
 
 // 1. Implement the plugin contract
 const myGame: GamePlugin = {
@@ -167,7 +167,7 @@ If you need finer control, wire components directly:
 
 ```typescript
 import { RawBus, NormalizedBus, BeatClockJudge,
-         BeatMapGenerator, StaticBeatMap, FeedbackLayer } from './dist/bundle.js';
+         BeatMapGenerator, StaticBeatMap, FeedbackLayer } from './dist/game.js';
 
 const feedback = new FeedbackLayer({ container: stage, width: 900, height: 320 });
 

@@ -10,7 +10,7 @@ Build a complete, playable plugin game from scratch: **"Particle Pop"** — ever
 git clone https://github.com/ahrazzle/typejoy.git
 cd typejoy
 npm install
-npx esbuild src/index.ts --bundle --outfile=dist/bundle.js --format=esm
+npx esbuild src/index.ts --bundle --outfile=dist/game.js --format=esm
 ```
 
 ## The HTML
@@ -35,7 +35,7 @@ npx esbuild src/index.ts --bundle --outfile=dist/bundle.js --format=esm
 ## The game (game.js)
 
 ```javascript
-import { createSession } from './dist/bundle.js';
+import { createSession } from './dist/game.js';
 
 const stage = document.getElementById('stage');
 

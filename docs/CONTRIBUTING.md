@@ -15,7 +15,7 @@ npm install
 The project is TypeScript compiled to an ESM bundle with esbuild:
 
 ```bash
-npx esbuild src/index.ts --bundle --outfile=dist/bundle.js --format=esm
+npx esbuild src/index.ts --bundle --outfile=dist/game.js --format=esm
 ```
 
 For development, run a local server (ES modules need HTTP, not `file://`):
@@ -102,7 +102,7 @@ Starting animation before `setJudge` was the root cause of several demo bugs. Ke
 Never report a fix as live until the **served bundle** proves it. After `git push`, verify at:
 
 ```
-https://raw.githubusercontent.com/ahrazzle/typejoy/main/dist/bundle.js
+https://raw.githubusercontent.com/ahrazzle/typejoy/main/dist/game.js
 ```
 
 (grep the exact string you shipped, or check the count of a marker symbol). Local source ≠ what the browser loads.
@@ -131,5 +131,5 @@ docs/
 demo.html              # the reference demo (also the test harness)
 src/                   # framework source
 test/                  # test suites
-dist/bundle.js         # built bundle (committed for GitHub Pages)
+dist/game.js           # built bundle (committed for GitHub Pages)
 ```
