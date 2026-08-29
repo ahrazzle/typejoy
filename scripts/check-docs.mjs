@@ -17,7 +17,7 @@ const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 
 const DOCS = [
   'README.md',
-  'PLUGIN_DEVELOPMENT.md',
+  join('docs', 'PLUGIN_GUIDE.md'),
   'API_REFERENCE.md',
   'CONTRIBUTING.md',
   join('docs', 'EXAMPLE_PLUGIN.md'),

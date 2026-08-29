@@ -327,7 +327,7 @@ get combo(): number
 get maxCombo(): number
 
 onChar(evt: NormalizedEvent): void
-// Entry point from the bus. Judging algorithm (see PLUGIN_DEVELOPMENT §2).
+// Entry point from the bus. Judging algorithm (see PLUGIN_GUIDE §The GamePlugin contract).
 
 tick(_currentSongTime: number): void
 // Call every frame/interval. Detects notes past (note.time + good window),
@@ -556,7 +556,7 @@ class DebugPlugin implements GamePlugin {
   readonly name = 'debug-validator';
   constructor() {}
 
-  // GamePlugin methods — see PLUGIN_DEVELOPMENT.md §1.
+  // GamePlugin methods — see PLUGIN_GUIDE §The GamePlugin contract.
   onGameStart(config: GameConfig): void
   onGameEnd(results: GameResults): void
   onHit(judgment: Judgment, key: string, delta: number): void
