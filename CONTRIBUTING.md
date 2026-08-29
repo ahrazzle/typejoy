@@ -1,6 +1,6 @@
 # Contributing to Typejoy
 
-The workflow for anyone working on the framework itself (or its docs). Plugin authors building a *game* on top should read [PLUGIN_DEVELOPMENT.md](./PLUGIN_DEVELOPMENT.md) instead — this file is about the engine and the repo.
+The workflow for anyone working on the framework itself (or its docs). Plugin authors building a *game* on top should read [docs/PLUGIN_GUIDE.md](./docs/PLUGIN_GUIDE.md) instead — this file is about the engine and the repo.
 
 ---
 
@@ -104,7 +104,7 @@ Enforced by `tsconfig.json` (`tsc --noEmit`):
 | Reference plugin | `src/debug-plugin.ts` |
 | End-to-end wiring | `demo.html` |
 
-Docs live at the repo root (`README.md`, `PLUGIN_DEVELOPMENT.md`, `API_REFERENCE.md`, `CONTRIBUTING.md`) and in `docs/`. `npm run docs` runs a consistency check that every method documented in `API_REFERENCE.md` actually exists in `src/` — run it after touching either the docs or the code.
+Docs live in `docs/` (`PLUGIN_GUIDE.md`, `API_REFERENCE.md`, `EXAMPLE_PLUGIN.md`, `CONTRIBUTING.md`) with `README.md` at the root. `npm run docs` runs a consistency check that every method documented in `API_REFERENCE.md` actually exists in `src/` — run it after touching either the docs or the code.
 
 ---
 

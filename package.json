@@ -2,6 +2,7 @@
   "name": "typejoy",
   "version": "0.1.0",
   "description": "Typejoy — an open-source rhythm-typing game framework for kids. Guitar Hero / osu! / Beat Saber inspired: build typing games on a beat-matching engine with a keyboard input pipeline, timing judge, and shared feedback layer.",
+  "license": "MIT",
   "type": "module",
   "scripts": {
     "test": "tsx test/eventbus.test.ts",

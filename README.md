@@ -2,9 +2,12 @@
 
 A framework for building rhythm-typing games for kids. Players type to the beat — keystrokes land on timing windows (Perfect/Great/Good/Miss) with satisfying particle effects and an animated reactive keyboard. Build your own game on top with a simple plugin API.
 
-**Live demo:** https://ahrazzle.github.io/typejoy/demo.html
+**Live demo:** https://typejoy.askaconsult.com
 
 ---
+
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+[![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](CONTRIBUTING.md)
 
 ## Quickstart (5 minutes)
 
@@ -121,17 +124,23 @@ All comparisons are case-insensitive (`toLowerCase()` on both sides). Kids with 
 - [Plugin Development Guide](docs/PLUGIN_GUIDE.md) — build a custom game on the framework
 - [API Reference](docs/API_REFERENCE.md) — every exported class, method, and type
 - [Example Plugin Walkthrough](docs/EXAMPLE_PLUGIN.md) — step-by-step game built from scratch
-- [Contributing](docs/CONTRIBUTING.md) — dev setup, tests, conventions
+- [Contributing](CONTRIBUTING.md) — dev setup, tests, conventions, and how to open a PR
 
----
+## Community & Governance
+
+- **Issues & feature requests** — open a GitHub issue; label it `enhancement` for a feature.
+- **Security** — see [SECURITY.md](SECURITY.md) for the private reporting process and trust model.
+- **Code of Conduct** — participation is governed by [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md).
+- **Changelog** — see [CHANGELOG.md](CHANGELOG.md) for a version history.
 
 ## Testing
 
 ```bash
 npm test          # 46 event-bus tests + 48 generator tests
 npm run typecheck # TypeScript strict check
+npm run docs      # verify docs imports match the built bundle
 ```
 
 ## License
 
-MIT
+MIT — see [LICENSE](LICENSE).

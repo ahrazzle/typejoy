@@ -83,7 +83,7 @@ export interface GameConfig {
 ```
 
 `Difficulty = 'easy' | 'medium' | 'hard' | 'expert'`
-`TimingWindows = { perfect: number; great: number; good: number }` (see [PLUGIN_DEVELOPMENT.md](./PLUGIN_DEVELOPMENT.md#3-timing-windows-per-difficulty) for per-difficulty values).
+`TimingWindows = { perfect: number; great: number; good: number }` (see [PLUGIN_GUIDE.md](./docs/PLUGIN_GUIDE.md#3-timing-windows-per-difficulty) for per-difficulty values).
 
 ```ts
 export interface AccessibilityConfig {
@@ -162,7 +162,7 @@ This is what you pass to `new BeatClockJudge(beatMap, config, hooks)`. `onWrongK
 
 ### `GamePlugin` — the plugin contract
 
-See [PLUGIN_DEVELOPMENT.md](./PLUGIN_DEVELOPMENT.md#1-the-contract-at-a-glance) for the full interface and semantics. `FeedbackLayer` is also exported from `types.ts` as the `FeedbackLayer` interface (re-exported from the barrel as `FeedbackLayerInterface`).
+See [PLUGIN_GUIDE.md](./docs/PLUGIN_GUIDE.md#1-the-contract-at-a-glance) for the full interface and semantics. `FeedbackLayer` is also exported from `types.ts` as the `FeedbackLayer` interface (re-exported from the barrel as `FeedbackLayerInterface`).
 
 ### Theme types
 
