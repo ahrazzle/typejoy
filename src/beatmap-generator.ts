@@ -30,6 +30,7 @@ const TIMING_WINDOWS: Record<Difficulty, number> = {
   medium: 300,
   hard: 150,
   expert: 80,
+  impossible: 40,
 };
 
 /** Lead-in time before the first note (ms) — matched to each difficulty's
@@ -39,6 +40,7 @@ const LEAD_IN_MS: Record<Difficulty, number> = {
   medium: 1000,
   hard: 600,
   expert: 350,
+  impossible: 250,
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -117,6 +119,7 @@ function shouldSkip(_key: string, difficulty: Difficulty, _index: number): boole
     case 'medium':
     case 'hard':
     case 'expert':
+    case 'impossible':
       // Never skip spaces — they are part of the user's content
       return false;
     default:

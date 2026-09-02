@@ -104,7 +104,7 @@ Draw in a `requestAnimationFrame` loop you own. The keyboard and particles rende
 ## Approach rings
 
 The framework renders approach rings that shrink toward each key as its note approaches (osu!/Stepmania-style). Rings:
-- Spawn when a note is within the preempt time (1500ms easy → 350ms expert)
+- Spawn when a note is within the preempt time (1500ms easy → 250ms impossible)
 - Shrink from 4x key size to 1x at the hit moment
 - Change color by proximity (white → cyan → green → yellow)
 - Collapse on judgment — hit, miss, or stale — keeping them synced with your gameplay

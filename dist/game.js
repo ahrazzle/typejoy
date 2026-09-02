@@ -221,7 +221,8 @@ var TIMING_WINDOWS = {
   easy: { perfect: 500, great: 700, good: 1e3 },
   medium: { perfect: 300, great: 500, good: 700 },
   hard: { perfect: 150, great: 300, good: 500 },
-  expert: { perfect: 80, great: 150, good: 250 }
+  expert: { perfect: 80, great: 150, good: 250 },
+  impossible: { perfect: 40, great: 80, good: 150 }
 };
 var DEFAULT_THEME = {
   name: "typejoy-default",
@@ -547,13 +548,15 @@ var TIMING_WINDOWS2 = {
   easy: 500,
   medium: 300,
   hard: 150,
-  expert: 80
+  expert: 80,
+  impossible: 40
 };
 var LEAD_IN_MS = {
   easy: 1500,
   medium: 1e3,
   hard: 600,
-  expert: 350
+  expert: 350,
+  impossible: 250
 };
 function effectiveBpm(options) {
   if (options.wordsPerMinute != null && options.wordsPerMinute > 0) {
@@ -595,6 +598,7 @@ function shouldSkip(_key, difficulty, _index) {
     case "medium":
     case "hard":
     case "expert":
+    case "impossible":
       return false;
     default:
       return false;
@@ -2451,7 +2455,8 @@ var LEAD_IN_MS2 = {
   easy: 1500,
   medium: 1e3,
   hard: 600,
-  expert: 350
+  expert: 350,
+  impossible: 250
 };
 function createSession(options) {
   const difficulty = options.difficulty ?? "easy";

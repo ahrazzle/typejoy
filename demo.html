@@ -355,7 +355,7 @@
         <div style="margin-top: 8px">
           <label>BPM (speed)</label>
           <div class="row">
-            <input type="range" id="bpm" min="20" max="120" value="40" />
+            <input type="range" id="bpm" min="20" max="240" value="40" />
             <span id="bpm-val" style="min-width:36px;text-align:right;font-size:13px">40</span>
           </div>
         </div>
@@ -366,6 +366,7 @@
             <option value="medium">Medium (±80ms)</option>
             <option value="hard">Hard (±40ms)</option>
             <option value="expert">Expert (±25ms)</option>
+            <option value="impossible">Impossible (±12ms)</option>
           </select>
         </div>
         <div style="margin-top: 10px; display: flex; gap: 8px;">
@@ -447,7 +448,7 @@
   </div>
 
   <script type="module">
-    import { RawBus, NormalizedBus, BeatClockJudge, StaticBeatMap, BeatMapGenerator, FeedbackLayer, DebugPlugin } from './dist/game.js?v=6';
+    import { RawBus, NormalizedBus, BeatClockJudge, StaticBeatMap, BeatMapGenerator, FeedbackLayer, DebugPlugin } from './dist/game.js?v=7';
 
     // ── State ─────────────────────────────────────────────────────────────
     let feedbackLayer = null;
@@ -616,7 +617,7 @@
       feedbackLayer.setJudge(judge);
 
       // Set approach ring preempt time based on difficulty
-      const preemptTimes = { easy: 1500, medium: 1000, hard: 600, expert: 350 };
+      const preemptTimes = { easy: 1500, medium: 1000, hard: 600, expert: 350, impossible: 250 };
       feedbackLayer.setPreemptTime(preemptTimes[difficulty] || 1500);
 
       debugPlugin.onGameStart({

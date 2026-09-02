@@ -19,7 +19,7 @@ interface SessionOptions {
   container: HTMLElement;                    // render target
   content: string;                           // text to type (each char = a note)
   bpm?: number;                              // default 60
-  difficulty?: 'easy' | 'medium' | 'hard' | 'expert'; // default 'easy'
+  difficulty?: 'easy' | 'medium' | 'hard' | 'expert' | 'impossible'; // default 'easy'
   hooks?: Partial<GamePlugin>;               // your plugin (optional)
   feedback?: Partial<FeedbackLayerOptions>;  // width/height/theme (optional)
 }
@@ -211,7 +211,7 @@ interface FeedbackLayerOptions {
 
 ```typescript
 type Judgment = 'perfect' | 'great' | 'good';
-type Difficulty = 'easy' | 'medium' | 'hard' | 'expert';
+type Difficulty = 'easy' | 'medium' | 'hard' | 'expert' | 'impossible';
 
 interface Note {
   key: string;
@@ -275,6 +275,7 @@ interface ThemeDescriptor {
   medium: { perfect: 300, great: 500, good: 700 },
   hard:   { perfect: 150, great: 300, good: 500 },
   expert: { perfect: 80,  great: 150, good: 250 },
+  impossible: { perfect: 40, great: 80, good: 150 },
 }
 ```
 
@@ -282,7 +283,7 @@ interface ThemeDescriptor {
 
 ```typescript
 // beatmap-generator.ts LEAD_IN_MS
-{ easy: 1500, medium: 1000, hard: 600, expert: 350 }
+{ easy: 1500, medium: 1000, hard: 600, expert: 350, impossible: 250 }
 ```
 
 ## Combo multiplier

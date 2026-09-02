@@ -65,6 +65,7 @@ const LEAD_IN_MS: Record<Difficulty, number> = {
   medium: 1000,
   hard: 600,
   expert: 350,
+  impossible: 250,
 };
 
 /**

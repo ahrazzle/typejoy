@@ -103,6 +103,7 @@ session.destroy(); // stops buses, stops animation, removes keyboard DOM
 | medium | ±300ms | ±500ms | ±700ms | 1000ms |
 | hard | ±150ms | ±300ms | ±500ms | 600ms |
 | expert | ±80ms | ±150ms | ±250ms | 350ms |
+| impossible | ±40ms | ±80ms | ±150ms | 250ms |
 
 The lead-in matches the approach-ring preempt time, so the first ring is visible the moment the session starts.
 

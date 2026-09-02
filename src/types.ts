@@ -44,7 +44,7 @@ export interface GameConfig {
   accessibility: AccessibilityConfig;
 }
 
-export type Difficulty = 'easy' | 'medium' | 'hard' | 'expert';
+export type Difficulty = 'easy' | 'medium' | 'hard' | 'expert' | 'impossible';
 
 export interface TimingWindows {
   perfect: number;
@@ -139,7 +139,8 @@ export const TIMING_WINDOWS: Record<Difficulty, TimingWindows> = {
   easy: { perfect: 500, great: 700, good: 1000 },
   medium: { perfect: 300, great: 500, good: 700 },
   hard: { perfect: 150, great: 300, good: 500 },
-  expert: { perfect: 80, great: 150, good: 250 }
+  expert: { perfect: 80, great: 150, good: 250 },
+  impossible: { perfect: 40, great: 80, good: 150 }
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
