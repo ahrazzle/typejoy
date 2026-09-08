@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html>
+<head><title>Typejoy Pipeline Test</title></head>
+<body style="background:#1a1a2e;color:#e0e0e0;font-family:monospace;padding:20px">
+<h2>Pipeline Test — Open Console (Cmd+Option+J)</h2>
+<p>This page loads the bundle and runs the full pipeline. Check console for results.</p>
+<pre id="output" style="background:#0d0d1a;padding:16px;border-radius:8px;"></pre>
+
+<script type="module">
+import { RawBus, NormalizedBus, BeatClockJudge, BeatMapGenerator, StaticBeatMap } from './dist/bundle.js';
+
+const output = document.getElementById('output');
+function log(msg) {
+  output.textContent += msg + '\n';
+  console.log(msg);
+}
+
+log('=== Typejoy Pipeline Test ===\n');
+
+// 1. Generate beatmap
+const generator = new BeatMapGenerator();
+const notes = generator.generate('hi', { bpm: 40, difficulty: 'easy' });
+log('Beat-map generated:');
+notes.forEach((n, i) => log(`  [${i}] key="${n.key}" time=${n.time}ms window=${n.window}ms`));
+
+const beatMap = new StaticBeatMap(notes);
+
+// 2. Create judge with tracking
+const judgments = [];
+const judge = new BeatClockJudge(beatMap, { difficulty: 'easy' }, {
+  onHit: (e) => {
+    judgments.push({ judgment: e.judgment, key: e.key, delta: e.delta });
+    log(`HIT: ${e.judgment} key="${e.key}" delta=${e.delta.toFixed(0)}ms combo=${judge.combo}`);
+  },
+  onMiss: (k, ek, d) => {
+    judgments.push({ judgment: 'miss', key: k, delta: d ?? 0 });
+    log(`MISS: key="${k}" expected="${ek}" delta=${d?.toFixed(0)}ms`);
+  },
+  onNoteStale: (n) => log(`STALE: key="${n.key}" at ${n.time}ms`),
+});
+
+// 3. Create bus pipeline
+const rawBus = new RawBus();
+const normBus = new NormalizedBus(rawBus);
+normBus.onChar((evt) => judge.onChar(evt));
+
+// 4. Start
+normBus.start();
+rawBus.start();
+const startTime = performance.now();
+judge.setStartTime(startTime);
+
+log(`\nGame started at t=0`);
+log(`First note expected at: ${notes[0].time}ms`);
+log(`\nPress "h" at ${notes[0].time}ms...`);
+
+// 5. Helper to press at exact time
+async function pressAt(key, code, targetTime) {
+  const now = performance.now();
+  const elapsed = now - startTime;
+  const wait = targetTime - elapsed;
+  if (wait > 0) await new Promise(r => setTimeout(r, wait));
+  const pressTime = performance.now();
+  const songTime = pressTime - startTime;
+  rawBus.inject(key, code, 'keydown', pressTime);
+  log(`  Injected "${key}" at songTime=${songTime.toFixed(0)}ms`);
+  await new Promise(r => setTimeout(r, 100));
+}
+
+(async () => {
+  try {
+    // Press h at its time
+    await pressAt('h', 'KeyH', notes[0].time);
+    log(`  Result: ${judgments[0]?.judgment || 'NONE'} (delta=${judgments[0]?.delta.toFixed(0)}ms)`);
+
+    // Press i at its time
+    await pressAt('i', 'KeyI', notes[1].time);
+    log(`  Result: ${judgments[judgments.length-1]?.judgment || 'NONE'} (delta=${judgments[judgments.length-1]?.delta.toFixed(0)}ms)`);
+
+    log(`\n=== FINAL ===`);
+    log(`Judgments: ${JSON.stringify(judgments)}`);
+    log(`Max combo: ${judge.state.maxCombo}`);
+    log(`Complete: ${judge.state.isComplete}`);
+  } catch (err) {
+    log(`ERROR: ${err.message}`);
+    console.error(err);
+  }
+
+  rawBus.stop();
+})();
+</script>
+</body>
+</html>
