@@ -1,3 +1,8 @@
 node_modules/
 .DS_Store
 __pycache__/
+# Compiled test outputs — tests run from .ts via tsx
+test/*.js
+test/*.js.map
+test/*.d.ts
+test/*.d.ts.map

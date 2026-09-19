@@ -5,9 +5,9 @@
   "license": "MIT",
   "type": "module",
   "scripts": {
-    "test": "tsx test/eventbus.test.ts",
+    "test": "tsx test/eventbus.test.ts && tsx test/beatmap-generator.test.ts && tsx test/judge.test.ts && tsx test/integration.test.ts",
     "typecheck": "tsc --noEmit",
-    "build": "esbuild src/index.ts --bundle --outfile=dist/bundle.js --format=esm",
+    "build": "esbuild src/index.ts --bundle --outfile=dist/game.js --format=esm && esbuild src/index.ts --bundle --outfile=dist/bundle.js --format=esm",
     "docs": "node scripts/check-docs.mjs"
   },
   "devDependencies": {

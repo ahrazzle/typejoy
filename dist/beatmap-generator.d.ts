@@ -7,10 +7,9 @@ export interface GeneratorOptions {
     /** Target words per minute — alternative to BPM. If set, overrides bpm. */
     wordsPerMinute?: number;
 }
-/** Timing window per difficulty (ms) — how tight the hit window is. */
-declare const TIMING_WINDOWS: Record<Difficulty, number>;
-/** Returns the hand ('left' | 'right') for a given key character. */
-declare function handOf(key: string): 'left' | 'right';
+/** Lead-in time before the first note (ms) — matched to each difficulty's
+ *  approach-ring preempt time so the first ring is visible at game start. */
+export declare const LEAD_IN_MS: Record<Difficulty, number>;
 /**
  * Computes the effective BPM. If `wordsPerMinute` is provided, derives BPM
  * from the rule: 1 note/beat × 5 chars/word → WPM = bpm / 5  →  bpm = WPM × 5.
@@ -26,5 +25,5 @@ export declare class BeatMapGenerator {
      */
     generate(content: string, options: GeneratorOptions): Note[];
 }
-export { effectiveBpm, handOf, TIMING_WINDOWS };
+export { effectiveBpm };
 //# sourceMappingURL=beatmap-generator.d.ts.map

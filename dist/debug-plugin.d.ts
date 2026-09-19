@@ -26,6 +26,7 @@ export declare class DebugPlugin implements GamePlugin {
     getCanvasContext(): HTMLCanvasElement | null;
     getFeedbackLayer(): FeedbackLayer;
     setFeedbackLayer(layer: FeedbackLayer): void;
+    private showDebugUI;
     private createUI;
     private startRenderLoop;
     private render;

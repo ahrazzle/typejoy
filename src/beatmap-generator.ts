@@ -6,6 +6,7 @@
 // based density and key-hand alternation.
 
 import type { Note, Difficulty } from './types.js';
+import { TIMING_WINDOWS } from './types.js';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Types
@@ -24,18 +25,20 @@ export interface GeneratorOptions {
 // Constants
 // ─────────────────────────────────────────────────────────────────────────────
 
-/** Timing window per difficulty (ms) — how tight the hit window is. */
-const TIMING_WINDOWS: Record<Difficulty, number> = {
-  easy: 500,
-  medium: 300,
-  hard: 150,
-  expert: 80,
-  impossible: 40,
+/** Per-difficulty note timing window (ms). Single-sourced from the framework's
+ *  canonical TIMING_WINDOWS — the generator stamps the `perfect` window onto
+ *  each note. The judge applies its own full window set at judgment time. */
+const PERFECT_WINDOWS: Record<Difficulty, number> = {
+  easy: TIMING_WINDOWS.easy.perfect,
+  medium: TIMING_WINDOWS.medium.perfect,
+  hard: TIMING_WINDOWS.hard.perfect,
+  expert: TIMING_WINDOWS.expert.perfect,
+  impossible: TIMING_WINDOWS.impossible.perfect,
 };
 
 /** Lead-in time before the first note (ms) — matched to each difficulty's
  *  approach-ring preempt time so the first ring is visible at game start. */
-const LEAD_IN_MS: Record<Difficulty, number> = {
+export const LEAD_IN_MS: Record<Difficulty, number> = {
   easy: 1500,
   medium: 1000,
   hard: 600,
@@ -73,22 +76,17 @@ export class BeatMapGenerator {
   generate(content: string, options: GeneratorOptions): Note[] {
     const bpm = effectiveBpm(options);
     const beatInterval = 60000 / bpm;
-    const window = TIMING_WINDOWS[options.difficulty];
+    const window = PERFECT_WINDOWS[options.difficulty];
 
     // ── Step 1: Split into characters, assign times ──────────────────────
+    // Character order is sacred — every character becomes a note, in order.
+    // No density filtering: skipping notes breaks the typing contract.
     const chars = Array.from(content);
     const notes: Note[] = [];
 
     for (let i = 0; i < chars.length; i++) {
-      const key = chars[i];
-
-      // Apply difficulty-based density filtering.
-      if (shouldSkip(key, options.difficulty, i)) {
-        continue;
-      }
-
       notes.push({
-        key,
+        key: chars[i],
         time: LEAD_IN_MS[options.difficulty] + Math.round(i * beatInterval),
         window,
       });
@@ -103,32 +101,7 @@ export class BeatMapGenerator {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Step 1 — Density filtering
-// ─────────────────────────────────────────────────────────────────────────────
-
-/**
- * Decides whether a character should be skipped based on difficulty.
- * - easy:   keep every character.
- * - medium: skip spaces if they would create excessive clustering.
- * - hard:   keep every character (no skipping).
- * - expert: keep every character.
- */
-function shouldSkip(_key: string, difficulty: Difficulty, _index: number): boolean {
-  switch (difficulty) {
-    case 'easy':
-    case 'medium':
-    case 'hard':
-    case 'expert':
-    case 'impossible':
-      // Never skip spaces — they are part of the user's content
-      return false;
-    default:
-      return false;
-  }
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
 // Exports
 // ─────────────────────────────────────────────────────────────────────────────
 
-export { effectiveBpm, TIMING_WINDOWS };
+export { effectiveBpm };

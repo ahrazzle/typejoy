@@ -15,7 +15,7 @@ export declare class RawBus {
     private readonly boundKeyUp;
     constructor(target?: GlobalEventHandlers & EventTarget);
     /**
-     * Subscribe to raw key events. Returns an unsubscribe function.
+     * Subscribe to raw keydown events only. Returns an unsubscribe function.
      */
     onKeyDown(fn: RawListener): () => void;
     /**

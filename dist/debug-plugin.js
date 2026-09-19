@@ -87,9 +87,25 @@ export class DebugPlugin {
     // ---- Framework Integration Helpers ------------------------------------
     setFeedbackLayer(layer) {
         this.feedbackLayer = layer;
+        // Remove old container if switching layers
+        if (this.container) {
+            this.container.remove();
+            this.container = null;
+        }
     }
     // ---- UI Construction ---------------------------------------------------
+    // NOTE: Debug UI is hidden by default for the kids' game.
+    // Set this.showDebugUI = true to enable development debugging.
+    showDebugUI = false;
     createUI() {
+        // Remove old UI if it exists to prevent DOM accumulation across games
+        if (this.container) {
+            this.container.remove();
+            this.container = null;
+        }
+        // Don't create visible UI for the kids' game
+        if (!this.showDebugUI)
+            return;
         // Create a container for the debug plugin's UI
         this.container = document.createElement('div');
         this.container.style.position = 'absolute';
@@ -184,6 +200,9 @@ export class DebugPlugin {
     }
     // ---- Render Loop ------------------------------------------------------
     startRenderLoop() {
+        // Only run render loop when debug UI is enabled
+        if (!this.showDebugUI)
+            return;
         const loop = () => {
             this.render();
             this.animationId = requestAnimationFrame(loop);
@@ -246,7 +265,10 @@ export class DebugPlugin {
         if (this.logEl) {
             this.logEl.innerHTML = this.judgmentLog.map(l => `<div>${l}</div>`).join('');
         }
-        console.log(`[DebugPlugin] ${msg}`);
+        // Only log to console when debug UI is enabled
+        if (this.showDebugUI) {
+            console.log(`[${this.name}] ${msg}`);
+        }
     }
     // ---- Cleanup ----------------------------------------------------------
     destroy() {

@@ -56,10 +56,12 @@ export class RawBus {
   // ---- Subscription -------------------------------------------------------
 
   /**
-   * Subscribe to raw key events. Returns an unsubscribe function.
+   * Subscribe to raw keydown events only. Returns an unsubscribe function.
    */
   onKeyDown(fn: RawListener): () => void {
-    return this.emitter.on(fn);
+    return this.emitter.on((evt) => {
+      if (evt.type === 'keydown') fn(evt);
+    });
   }
 
   /**
