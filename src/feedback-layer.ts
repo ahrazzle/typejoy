@@ -17,6 +17,7 @@ import {
   Judgment,
   FeedbackLayer as FeedbackLayerInterface,
   BeatNote,
+  accuracyToRanking,
 } from './types.js';
 import { SVGKeyboardRenderer } from './svg-keyboard.js';
 import { ParticleSystem } from './particle-system.js';
@@ -591,15 +592,9 @@ export class FeedbackLayer implements FeedbackLayerInterface {
     return weightedScore / total;
   }
 
-  /** Get letter ranking based on accuracy */
+  /** Get letter ranking based on accuracy (shares the scale with accuracyToRanking) */
   getRanking(): string {
-    const accuracy = this.getAccuracy();
-    if (accuracy >= 0.95) return 'S';
-    if (accuracy >= 0.85) return 'A';
-    if (accuracy >= 0.70) return 'B';
-    if (accuracy >= 0.55) return 'C';
-    if (accuracy >= 0.40) return 'D';
-    return 'F';
+    return accuracyToRanking(this.getAccuracy());
   }
 
   /** Play celebration animation (confetti burst) */

@@ -7,11 +7,16 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ## [Unreleased]
 
 ### Added
+- `createSession()` facade — a single call that wires the full pipeline in the
+  safe order (judge → feedback → start), so consumers can't misorder bootstrap.
 - `onSongComplete(results)` hook — fires exactly once when the last note
   resolves (hit, miss, or stale), carrying score, judgment counts, accuracy,
-  and pass/fail. `BeatClockJudge.judgmentCounts` exposes the running counts.
+  ranking (S/A/B/C/D/F), and pass/fail. `BeatClockJudge.judgmentCounts`
+  exposes the running counts.
 - `API_REFERENCE.md` — full public API reference, machine-checked by
   `npm run docs` (which now passes; it was failing on the missing file).
+  Lives at the repo root; plugin guide and example-plugin walkthrough under
+  `docs/`.
 - `LEAD_IN_MS` and `TIMING_WINDOWS` exported from the package root
   (single-sourced from the beat-map generator / types).
 
@@ -26,7 +31,7 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - `RawBus.onKeyDown` no longer fires for keyup events.
 - `onComboBreak` no longer fires when the combo was already 0.
 - Stats display follows the active theme instead of hardcoded colors.
-- `npm test` runs all four suites (134 tests); the integration suite's
+- `npm test` runs all four suites (136 tests); the integration suite's
   hardcoded note times were stale and now target the generated notes.
 - Removed dead code: the generator's never-skipping `shouldSkip` filter and
   its duplicate `TIMING_WINDOWS` table, the session's duplicate `LEAD_IN_MS`
@@ -35,7 +40,6 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ### Changed
 - `npm run build` now emits both `dist/game.js` (demo) and `dist/bundle.js`
   from the same source; README updated to match.
-- Plugin guide, API reference, and example-plugin walkthrough under `docs/`.
 
 ## [0.1.0] — 2026-08-28
 

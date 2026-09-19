@@ -22,6 +22,8 @@ export {
   FeedbackLayer as FeedbackLayerInterface,
   // Canonical per-difficulty timing windows
   TIMING_WINDOWS,
+  // Accuracy → letter-rank helper shared with FeedbackLayer.getRanking()
+  accuracyToRanking,
 } from './types';
 
 export { FeedbackLayer, FeedbackLayerOptions } from './feedback-layer';

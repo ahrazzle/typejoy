@@ -123,7 +123,7 @@ All comparisons are case-insensitive (`toLowerCase()` on both sides). Kids with 
 ## Docs
 
 - [Plugin Development Guide](docs/PLUGIN_GUIDE.md) — build a custom game on the framework
-- [API Reference](docs/API_REFERENCE.md) — every exported class, method, and type
+- [API Reference](API_REFERENCE.md) — every exported class, method, and type
 - [Example Plugin Walkthrough](docs/EXAMPLE_PLUGIN.md) — step-by-step game built from scratch
 - [Contributing](CONTRIBUTING.md) — dev setup, tests, conventions, and how to open a PR
 
@@ -137,9 +137,9 @@ All comparisons are case-insensitive (`toLowerCase()` on both sides). Kids with 
 ## Testing
 
 ```bash
-npm test          # 46 event-bus tests + 48 generator tests
+npm test          # all four suites: 46 event-bus + 51 generator + 37 judge-regression + 2 integration tests (136 assertions)
 npm run typecheck # TypeScript strict check
-npm run docs      # verify docs imports match the built bundle
+npm run docs      # verify API_REFERENCE.md signatures against src/
 ```
 
 ## License

@@ -284,3 +284,6 @@ Core types, the `PluginHooks` interface the judge dispatches to, and the
   The judge's `windows` config option overrides per instance.
 - `DEFAULT_THEME`, `ThemeDescriptor`, `ColorPalette`, `GameConfig`,
   `GameResults`, `Note`/`BeatNote`, `Difficulty`, `AccessibilityConfig`.
+- `GameResults` carries `ranking` — the letter rank (`S`/`A`/`B`/`C`/`D`/`F`)
+  computed from accuracy. `accuracyToRanking(accuracy)` applies the same scale
+  `FeedbackLayer.getRanking()` uses, so the HUD and the final results agree.

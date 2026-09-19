@@ -13,30 +13,30 @@ The workflow for anyone working on the framework itself (or its docs). Plugin au
 
 ## Running tests
 
-The repo has two assertion-based test suites (no test framework — plain `tsx` scripts with a pass/fail tally):
+The repo has four assertion-based test suites (no test framework — plain `tsx` scripts with a pass/fail tally), all run by a single command:
+
+- **Event bus** (`test/eventbus.test.ts`): RawBus → NormalizedBus → BeatClockJudge → PluginHooks (46 assertions)
+- **Beat-map generator** (`test/beatmap-generator.test.ts`): timing, density, lead-in, range queries (51 assertions)
+- **Judge regressions** (`test/judge.test.ts`): `tick()` honoring its parameter, `onSongComplete` firing exactly once with correct results (including rank), stale-path misses, keyup filtering, combo-break gating (37 assertions)
+- **Integration** (`test/integration.test.ts`): full pipeline driven by injected events, headless, no DOM (2 assertions)
+
+46 + 51 + 37 + 2 = 136 assertions total.
 
 ```bash
-# Event bus: RawBus → NormalizedBus → BeatClockJudge → PluginHooks (46 assertions)
 npm test
-
-# Beat-map generator: timing, density, lead-in, range queries (51 assertions)
-npx tsx test/beatmap-generator.test.ts
-
-# Integration: full pipeline driven by injected events (headless, no DOM)
-npx tsx test/integration.test.ts
 ```
 
-Both suites exit non-zero on any failure. Expected output ends with:
+All suites exit non-zero on any failure. Expected output ends with:
 
 ```
 ============================================================
-Results: 46 passed, 0 failed
+Results: 136 passed, 0 failed
 ============================================================
 ```
 
 ### Testing conventions
 
-- **Components are tested in isolation.** The event-bus suite exercises `RawBus`/`NormalizedBus`/`Judge` with injected events (`rawBus.inject`, `normBus.injectRaw`) and direct `judge.onChar` calls — no real DOM, no timers. The generator suite checks note math directly.
+- **Components are tested in isolation.** The event-bus suite exercises `RawBus`/`NormalizedBus`/`Judge` with injected events (`rawBus.inject`, `normBus.injectRaw`) and direct `judge.onChar` calls — no real DOM, no timers. The generator suite checks note math directly; the judge-regression suite pins each fixed bug's behavior; the integration suite drives the full pipeline with injected events.
 - **Integration bugs are caught by manual review.** This is a documented lesson from development: several real bugs (ghost space notes, medium difficulty dropping spaces, doubled notes on hard/expert, `judgmentCounts` vs `stats` property mismatches) only surfaced when the wiring in `demo.html` was exercised by hand in the browser. The `tsx` suites can't catch DOM/`requestAnimationFrame`/`setInterval` interaction bugs, so **any change to the wiring or to `FeedbackLayer` must be verified manually in `demo.html`** — run a game, type through it, check the results overlay. Fixes from those manual rounds are the majority of the git history.
 - When you fix a bug found manually, add a unit assertion for it to the relevant suite so it doesn't regress silently.
 
@@ -104,7 +104,7 @@ Enforced by `tsconfig.json` (`tsc --noEmit`):
 | Reference plugin | `src/debug-plugin.ts` |
 | End-to-end wiring | `demo.html` |
 
-Docs live in `docs/` (`PLUGIN_GUIDE.md`, `API_REFERENCE.md`, `EXAMPLE_PLUGIN.md`, `CONTRIBUTING.md`) with `README.md` at the root. `npm run docs` runs a consistency check that every method documented in `API_REFERENCE.md` actually exists in `src/` — run it after touching either the docs or the code.
+Docs live at the root (`API_REFERENCE.md`, `CONTRIBUTING.md`, `CHANGELOG.md`) and in `docs/` (`PLUGIN_GUIDE.md`, `EXAMPLE_PLUGIN.md`), with `README.md` at the root. `npm run docs` runs a consistency check that every method documented in `API_REFERENCE.md` actually exists in `src/` — run it after touching either the docs or the code.
 
 ---
 
