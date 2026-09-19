@@ -27,7 +27,7 @@ import type {
   GameResults,
   Listener,
 } from './types.js';
-import { TIMING_WINDOWS } from './types.js';
+import { TIMING_WINDOWS, accuracyToRanking } from './types.js';
 
 type JudgmentListener = Listener<JudgmentEvent>;
 
@@ -364,7 +364,8 @@ export class BeatClockJudge {
 
   /**
    * Fire onSongComplete exactly once when the cursor has moved past the last
-   * note. Carries the final GameResults (judgment counts, score, accuracy).
+   * note. Carries the final GameResults (judgment counts, score, accuracy,
+   * rank).
    */
   private maybeFireSongComplete(): void {
     if (this._songCompleteFired) return;
@@ -384,6 +385,7 @@ export class BeatClockJudge {
       totalNotes: total,
       judgments: { perfect, great, good, miss },
       accuracy,
+      ranking: accuracyToRanking(accuracy),
       passed: accuracy >= 0.6,
       duration: this.beatMap.notes[total - 1].time,
     };

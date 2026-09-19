@@ -78,8 +78,27 @@ export interface GameResults {
     miss: number;
   };
   accuracy: number;
+  /**
+   * Letter rank computed from accuracy (`S`/`A`/`B`/`C`/`D`/`F`), on the same
+   * scale as `FeedbackLayer.getRanking()` — use this instead of `getRanking()`
+   * when you only have the final results object.
+   */
+  ranking: string;
   passed: boolean;
   duration: number;
+}
+
+/**
+ * Letter ranking for a 0–1 accuracy. Shared by `FeedbackLayer.getRanking()`
+ * and `BeatClockJudge` so the HUD and the final `GameResults` agree.
+ */
+export function accuracyToRanking(accuracy: number): string {
+  if (accuracy >= 0.95) return 'S';
+  if (accuracy >= 0.85) return 'A';
+  if (accuracy >= 0.70) return 'B';
+  if (accuracy >= 0.55) return 'C';
+  if (accuracy >= 0.40) return 'D';
+  return 'F';
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

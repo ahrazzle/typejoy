@@ -219,6 +219,14 @@ var NormalizedBus = class {
 };
 
 // src/types.ts
+function accuracyToRanking(accuracy) {
+  if (accuracy >= 0.95) return "S";
+  if (accuracy >= 0.85) return "A";
+  if (accuracy >= 0.7) return "B";
+  if (accuracy >= 0.55) return "C";
+  if (accuracy >= 0.4) return "D";
+  return "F";
+}
 var TIMING_WINDOWS = {
   easy: { perfect: 500, great: 700, good: 1e3 },
   medium: { perfect: 300, great: 500, good: 700 },
@@ -495,7 +503,8 @@ var BeatClockJudge = class {
   }
   /**
    * Fire onSongComplete exactly once when the cursor has moved past the last
-   * note. Carries the final GameResults (judgment counts, score, accuracy).
+   * note. Carries the final GameResults (judgment counts, score, accuracy,
+   * rank).
    */
   maybeFireSongComplete() {
     if (this._songCompleteFired) return;
@@ -513,6 +522,7 @@ var BeatClockJudge = class {
       totalNotes: total,
       judgments: { perfect, great, good, miss },
       accuracy,
+      ranking: accuracyToRanking(accuracy),
       passed: accuracy >= 0.6,
       duration: this.beatMap.notes[total - 1].time
     };
@@ -2166,15 +2176,9 @@ var FeedbackLayer = class {
     const weightedScore = perfect * 1 + great * 0.75 + good * 0.5;
     return weightedScore / total;
   }
-  /** Get letter ranking based on accuracy */
+  /** Get letter ranking based on accuracy (shares the scale with accuracyToRanking) */
   getRanking() {
-    const accuracy = this.getAccuracy();
-    if (accuracy >= 0.95) return "S";
-    if (accuracy >= 0.85) return "A";
-    if (accuracy >= 0.7) return "B";
-    if (accuracy >= 0.55) return "C";
-    if (accuracy >= 0.4) return "D";
-    return "F";
+    return accuracyToRanking(this.getAccuracy());
   }
   /** Play celebration animation (confetti burst) */
   playCelebration() {
@@ -2562,6 +2566,7 @@ export {
   SVGKeyboardRenderer,
   StaticBeatMap,
   TIMING_WINDOWS,
+  accuracyToRanking,
   buildKeyMap,
   createSession,
   normalizeKey2 as normalizeKey

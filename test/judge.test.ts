@@ -153,6 +153,7 @@ console.log('\n[3] onSongComplete — fires once with correct results (hits)');
   assertEqual(r.judgments.miss, 0, 'miss = 0');
   assertEqual(r.score, 600, 'score = 2 × 300');
   assertEqual(r.accuracy, 1, 'accuracy = 1.0');
+  assertEqual(r.ranking, 'S', 'ranking = S');
   assertEqual(r.maxCombo, 2, 'maxCombo = 2');
   assertEqual(r.passed, true, 'passed = true');
   assertEqual(r.duration, 2000, 'duration = last note time');
@@ -181,6 +182,7 @@ console.log('\n[4] onSongComplete — fires once with correct results (stale)');
   assertEqual(r.judgments.miss, 2, 'miss = 2');
   assertEqual(r.score, 0, 'score = 0');
   assertEqual(r.accuracy, 0, 'accuracy = 0');
+  assertEqual(r.ranking, 'F', 'ranking = F');
   assertEqual(r.passed, false, 'passed = false');
 }
 
