@@ -155,6 +155,8 @@ export interface PluginHooks {
   onCombo?(count: number, multiplier: number): void;
   onComboBreak?(previousCount: number): void;
   onStreakThreshold?(count: number): void;
+  /** Called once when the last note is resolved (hit, miss, or stale) */
+  onSongComplete?(results: GameResults): void;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

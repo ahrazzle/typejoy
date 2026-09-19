@@ -63,6 +63,7 @@ if (existsSync(apiRefPath)) {
       PluginRegistry: 'PluginHooks.ts',
       StaticBeatMap: 'BeatMap.ts',
       SVGKeyboardRenderer: 'svg-keyboard.ts',
+      createSession: 'session.ts',
     };
     const norm = (s) => s.toLowerCase().replace(/[^a-z0-9]/g, '');
 

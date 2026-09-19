@@ -9,21 +9,32 @@
  * - Canvas overlay on top for particles, screen shake, RGB glow
  * - Stacked with pointer-events: none so keystrokes reach the input layer
  */
-import { DEFAULT_THEME, } from './types';
-import { SVGKeyboardRenderer } from './svg-keyboard';
-import { ParticleSystem } from './particle-system';
-import { normalizeKey } from './keyboard-layout';
+import { DEFAULT_THEME, } from './types.js';
+import { SVGKeyboardRenderer } from './svg-keyboard.js';
+import { ParticleSystem } from './particle-system.js';
+import { ApproachRingSystem } from './approach-ring-system.js';
+import { normalizeKey } from './keyboard-layout.js';
 export class FeedbackLayer {
     container;
     theme;
     keyboardContainer;
     canvas;
+    approachRingCanvas;
     keyboard;
     particles;
+    approachRings;
     liveRegion;
     comboDisplay;
     width;
     height;
+    // Stats display (always visible, not part of debug plugin)
+    statsDisplay = null;
+    stats = { perfect: 0, great: 0, good: 0, miss: 0 };
+    // Expected-key indicator (floating keycap above target key)
+    expectedKeyIndicator = null;
+    expectedKeyLabel = null;
+    // Judge reference (set via setJudge) for expected-key indicator + ring collapse
+    judge = null;
     // State
     maxComboReached = 0;
     nudgeKeys = new Map();
@@ -72,6 +83,21 @@ export class FeedbackLayer {
         this.particles = new ParticleSystem(this.canvas);
         this.particles.setTheme(this.theme);
         this.particles.resize(this.width, this.height);
+        // Approach ring canvas (in front of particles, behind combo display)
+        this.approachRingCanvas = document.createElement('canvas');
+        this.approachRingCanvas.style.position = 'absolute';
+        this.approachRingCanvas.style.top = '0';
+        this.approachRingCanvas.style.left = '0';
+        this.approachRingCanvas.style.width = '100%';
+        this.approachRingCanvas.style.height = '100%';
+        this.approachRingCanvas.style.zIndex = '3';
+        this.approachRingCanvas.style.pointerEvents = 'none';
+        this.container.appendChild(this.approachRingCanvas);
+        // Approach ring system
+        this.approachRings = new ApproachRingSystem(this.approachRingCanvas);
+        this.approachRings.resize(this.width, this.height);
+        this.approachRings.setPreemptTime(1500); // Default to easy
+        this.approachRings.setNoteCount(3);
         // ARIA live region (accessible announcements)
         this.liveRegion = document.createElement('div');
         this.liveRegion.setAttribute('role', 'status');
@@ -100,12 +126,45 @@ export class FeedbackLayer {
         this.comboDisplay.style.color = this.theme.colors.primary;
         this.comboDisplay.style.zIndex = '3';
         this.comboDisplay.style.pointerEvents = 'none';
-        this.comboDisplay.style.textShadow = `0 0 10px ${this.theme.colors.primary}`;
+        this.comboDisplay.style.textShadow = 'none';
+        this.comboDisplay.style.willChange = 'transform';
         this.comboDisplay.style.opacity = '0';
         this.comboDisplay.style.transition = 'opacity 200ms ease, transform 200ms ease';
         this.container.appendChild(this.comboDisplay);
+        // Stats display (top-left) — always visible, independent of debug plugin
+        this.statsDisplay = document.createElement('div');
+        this.statsDisplay.setAttribute('aria-hidden', 'true');
+        this.statsDisplay.style.position = 'absolute';
+        this.statsDisplay.style.top = '12px';
+        this.statsDisplay.style.left = '12px';
+        this.statsDisplay.style.fontFamily = 'system-ui, -apple-system, sans-serif';
+        this.statsDisplay.style.fontSize = '12px';
+        this.statsDisplay.style.color = 'rgba(255,255,255,0.7)';
+        this.statsDisplay.style.zIndex = '3';
+        this.statsDisplay.style.pointerEvents = 'none';
+        this.statsDisplay.style.lineHeight = '1.5';
+        this.statsDisplay.style.textShadow = '0 1px 3px rgba(0,0,0,0.6)';
+        this.container.appendChild(this.statsDisplay);
+        this.updateStatsDisplay();
         // Apply initial theme
         this.keyboard.applyTheme(this.theme, this.highContrast);
+    }
+    /** Increment and render the judgment stats (top-left) */
+    updateStatsDisplay() {
+        if (!this.statsDisplay)
+            return;
+        const c = this.theme.colors;
+        this.statsDisplay.innerHTML = `
+      <span style="color:${c.primary}">Perfect: ${this.stats.perfect}</span>
+      <span style="color:${c.secondary};margin-left:8px">Great: ${this.stats.great}</span>
+      <span style="color:${c.tertiary};margin-left:8px">Good: ${this.stats.good}</span>
+      <span style="color:${c.danger};margin-left:8px">Miss: ${this.stats.miss}</span>
+    `;
+    }
+    /** Reset judgment stats (called at game start) */
+    resetStats() {
+        this.stats = { perfect: 0, great: 0, good: 0, miss: 0 };
+        this.updateStatsDisplay();
     }
     // ─────────────────────────────────────────────────────────────────────────
     // Plugin Event Handlers
@@ -113,27 +172,36 @@ export class FeedbackLayer {
     renderHit(judgment, key, _delta) {
         const normalizedKey = normalizeKey(key);
         const keyBounds = this.getKeyScreenBounds(normalizedKey);
-        // Depress the key
-        this.keyboard.depressKey(normalizedKey, judgment === 'perfect' ? 100 : 70);
+        const cx = keyBounds.x + keyBounds.width / 2;
+        const cy = keyBounds.y + keyBounds.height / 2;
+        // Depress the key with spring physics
+        this.keyboard.depressKey(normalizedKey);
+        // Track stats
+        this.stats[judgment]++;
+        this.updateStatsDisplay();
+        // Emit ripple emanating across the keyboard surface
+        this.particles.emitRipple(cx, cy, judgment);
         // Apply theme-based visual feedback per channel
         switch (judgment) {
             case 'perfect':
-                // Full particle burst + key depression + screen-edge glow
+                // Full particle burst + key depression + screen-edge glow + specular sweep + confetti
                 this.keyboard.setKeyHighlight(normalizedKey, this.theme.colors.primary, 0.7);
-                this.particles.emitBurst(keyBounds.x + keyBounds.width / 2, keyBounds.y + keyBounds.height / 2, 'perfect', this.theme.particleStyle, this.theme.particleDensity);
+                this.particles.emitBurst(cx, cy, 'perfect', this.theme.particleStyle, this.theme.particleDensity);
+                this.particles.emitBurst(cx, cy, 'perfect', 'confetti', this.theme.particleDensity * 0.5);
                 this.particles.addEdgeGlow(this.theme.colors.primary, this.theme.intensity, 300);
                 this.particles.addShake(this.theme.shakeIntensity * 0.5, 150);
+                this.particles.emitSpecularSweep();
                 break;
             case 'great':
                 // Moderate burst + key depression
                 this.keyboard.setKeyHighlight(normalizedKey, this.theme.colors.secondary, 0.5);
-                this.particles.emitBurst(keyBounds.x + keyBounds.width / 2, keyBounds.y + keyBounds.height / 2, 'great', this.theme.particleStyle, this.theme.particleDensity * 0.7);
+                this.particles.emitBurst(cx, cy, 'great', this.theme.particleStyle, this.theme.particleDensity * 0.7);
                 this.particles.addEdgeGlow(this.theme.colors.secondary, this.theme.intensity * 0.5, 200);
                 break;
             case 'good':
                 // Muted flash + small key depression
                 this.keyboard.setKeyHighlight(normalizedKey, this.theme.colors.tertiary, 0.4);
-                this.particles.emitMutedFlash(keyBounds.x + keyBounds.width / 2, keyBounds.y + keyBounds.height / 2);
+                this.particles.emitMutedFlash(cx, cy);
                 break;
         }
         // Clear key highlight after a moment
@@ -144,21 +212,23 @@ export class FeedbackLayer {
     renderMiss(key, _expectedKey) {
         const normalizedKey = normalizeKey(key);
         const keyBounds = this.getKeyScreenBounds(normalizedKey);
-        // Wrong key: muted red flash + small shake (deliberately underwhelming, not punishing)
+        // Track stats — wrong keys count as miss
+        this.stats.miss++;
+        this.updateStatsDisplay();
+        // Wrong key: muted red flash + small shake + tiny ripple (deliberately underwhelming)
         this.keyboard.shakeKey(normalizedKey);
         this.keyboard.setKeyHighlight(normalizedKey, this.theme.colors.danger, 0.3);
         this.particles.emitWrongKeyBurst(keyBounds.x + keyBounds.width / 2, keyBounds.y + keyBounds.height / 2);
+        this.particles.emitRipple(keyBounds.x + keyBounds.width / 2, keyBounds.y + keyBounds.height / 2, 'wrong');
         // No screen shake for wrong keys — keep it gentle
         // No edge glow for wrong keys — not punishing
         window.setTimeout(() => {
             this.keyboard.clearKeyHighlight(normalizedKey);
         }, 200);
     }
-    renderStale(note) {
-        if (!this.nudgeEnabled)
-            return;
-        // Start nudge hint on the expected key
-        this.nudgeKeys.set(note.key, { note, startTime: performance.now() });
+    renderStale(_note) {
+        // Don't add nudge for stale notes — the cursor has already advanced past them.
+        // Nudges are only for the current expected key (handled in updateNudges).
     }
     renderCombo(count, _multiplier) {
         if (count > this.maxComboReached) {
@@ -189,7 +259,36 @@ export class FeedbackLayer {
         this.keyboard.applyTheme(theme, this.highContrast);
         this.particles.setTheme(theme);
         this.comboDisplay.style.color = theme.colors.primary;
-        this.comboDisplay.style.textShadow = `0 0 10px ${theme.colors.primary}`;
+        this.comboDisplay.style.textShadow = 'none';
+        this.updateStatsDisplay();
+    }
+    /** Set approach ring preempt time (ms before hit when rings appear) */
+    setPreemptTime(ms) {
+        this.approachRings.setPreemptTime(ms);
+    }
+    /** Mark a note's approach ring as judged so it collapses on the hit frame */
+    markNoteJudged(note, judgment) {
+        this.approachRings.markJudged(note, judgment);
+    }
+    /** Set how many upcoming notes to show approach rings for */
+    setNoteCount(count) {
+        this.approachRings.setNoteCount(count);
+    }
+    /**
+     * Provide a reference to the judge so the feedback layer can query the current
+     * expected note and render a persistent expected-key indicator.
+     */
+    setJudge(judge) {
+        this.judge = judge;
+        // Remove old indicator before creating new to prevent DOM accumulation
+        if (this.expectedKeyIndicator) {
+            this.expectedKeyIndicator.remove();
+            this.expectedKeyIndicator = null;
+        }
+        this.createExpectedKeyIndicator();
+        this.approachRings.judge = judge;
+        this.approachRings.keyboard = this.keyboard;
+        this.approachRings.container = this.container;
     }
     // ─────────────────────────────────────────────────────────────────────────
     // Accessibility
@@ -281,10 +380,72 @@ export class FeedbackLayer {
         }
     }
     // ─────────────────────────────────────────────────────────────────────────
-    // Utility
+    // Expected-Key Indicator
     // ─────────────────────────────────────────────────────────────────────────
+    createExpectedKeyIndicator() {
+        // The floating keycap that hovers above the keyboard
+        this.expectedKeyIndicator = document.createElement('div');
+        this.expectedKeyIndicator.setAttribute('aria-hidden', 'true');
+        this.expectedKeyIndicator.style.position = 'absolute';
+        this.expectedKeyIndicator.style.top = '0';
+        this.expectedKeyIndicator.style.left = '50%';
+        this.expectedKeyIndicator.style.transform = 'translateX(-50%) translateY(20px)';
+        this.expectedKeyIndicator.style.width = '44px';
+        this.expectedKeyIndicator.style.height = '44px';
+        this.expectedKeyIndicator.style.borderRadius = '6px';
+        this.expectedKeyIndicator.style.background = 'rgba(255, 145, 0, 0.15)';
+        this.expectedKeyIndicator.style.border = '2px solid rgba(255, 145, 0, 0.6)';
+        this.expectedKeyIndicator.style.display = 'flex';
+        this.expectedKeyIndicator.style.alignItems = 'center';
+        this.expectedKeyIndicator.style.justifyContent = 'center';
+        this.expectedKeyIndicator.style.fontFamily = 'system-ui, sans-serif';
+        this.expectedKeyIndicator.style.fontWeight = '700';
+        this.expectedKeyIndicator.style.fontSize = '16px';
+        this.expectedKeyIndicator.style.color = '#ff9100';
+        this.expectedKeyIndicator.style.zIndex = '4';
+        this.expectedKeyIndicator.style.pointerEvents = 'none';
+        this.expectedKeyIndicator.style.opacity = '0';
+        this.expectedKeyIndicator.style.transition = 'opacity 200ms ease, transform 100ms ease';
+        this.expectedKeyIndicator.style.boxShadow = '0 0 12px rgba(255, 145, 0, 0.3)';
+        this.container.appendChild(this.expectedKeyIndicator);
+        this.expectedKeyLabel = document.createElement('span');
+        this.expectedKeyLabel.textContent = '';
+        this.expectedKeyIndicator.appendChild(this.expectedKeyLabel);
+    }
+    /**
+    * Updates the expected-key indicator each frame: reads the judge's current note,
+    * positions the floating keycap above the target key, and adjusts glow intensity
+    * based on how close the note is to its hit time.
+    */
+    updateExpectedKeyIndicator() {
+        if (!this.judge || !this.expectedKeyIndicator)
+            return;
+        const note = this.judge.getCurrentNote();
+        if (!note) {
+            this.expectedKeyIndicator.style.opacity = '0';
+            return;
+        }
+        // Show the indicator
+        this.expectedKeyIndicator.style.opacity = '1';
+        const displayKey = note.key === ' ' ? '␣' : note.key.toUpperCase();
+        if (this.expectedKeyLabel) {
+            this.expectedKeyLabel.textContent = displayKey.toUpperCase();
+        }
+        // Find the target key's position (space → "space", letters → lowercase)
+        const lookupKey = note.key === ' ' ? 'space' : note.key.toLowerCase();
+        const targetKeyEl = this.keyboard.getKeyElement(lookupKey);
+        if (!targetKeyEl)
+            return;
+        const keyRect = targetKeyEl.getBoundingClientRect();
+        const containerRect = this.container.getBoundingClientRect();
+        const keyCenterX = keyRect.left - containerRect.left + keyRect.width / 2;
+        // Position above the target key
+        this.expectedKeyIndicator.style.left = `${keyCenterX}px`;
+        this.expectedKeyIndicator.style.transform = 'translateX(-50%) translateY(0)';
+    }
     getKeyScreenBounds(keyId) {
-        const keyEl = this.keyboard.getKeyElement(keyId);
+        const lookupKey = keyId === ' ' ? 'space' : keyId.toLowerCase();
+        const keyEl = this.keyboard.getKeyElement(lookupKey);
         if (keyEl) {
             // The SVG element's bounding box is relative to the SVG viewBox
             // We need to convert to screen coordinates
@@ -316,9 +477,48 @@ export class FeedbackLayer {
         this.lastStreakThreshold = 0;
         this.keyboard.reset();
         this.particles.clear();
+        this.approachRings.clear();
         this.comboDisplay.style.opacity = '0';
         this.comboDisplay.textContent = '';
         this.nudgeKeys.clear();
+        this.resetStats();
+    }
+    /** Get accuracy as 0-1 based on judgment windows */
+    getAccuracy() {
+        const { perfect, great, good, miss } = this.stats;
+        const total = perfect + great + good + miss;
+        if (total === 0)
+            return 0;
+        // Perfect = 100%, Great = 75%, Good = 50%, Miss = 0%
+        const weightedScore = (perfect * 1.0) + (great * 0.75) + (good * 0.5);
+        return weightedScore / total;
+    }
+    /** Get letter ranking based on accuracy */
+    getRanking() {
+        const accuracy = this.getAccuracy();
+        if (accuracy >= 0.95)
+            return 'S';
+        if (accuracy >= 0.85)
+            return 'A';
+        if (accuracy >= 0.70)
+            return 'B';
+        if (accuracy >= 0.55)
+            return 'C';
+        if (accuracy >= 0.40)
+            return 'D';
+        return 'F';
+    }
+    /** Play celebration animation (confetti burst) */
+    playCelebration() {
+        const cx = this.width / 2;
+        const cy = this.height / 2;
+        // Emit confetti from center
+        for (let i = 0; i < 5; i++) {
+            this.particles.emitBurst(cx, cy, 'perfect', 'confetti', 1.5);
+        }
+        // Add screen-edge glow
+        this.particles.addEdgeGlow('#00e5ff', 0.6, 1000);
+        this.particles.addEdgeGlow('#76ff03', 0.4, 1200);
     }
     resize(width, height) {
         this.width = width;
@@ -326,21 +526,28 @@ export class FeedbackLayer {
         this.container.style.width = `${width}px`;
         this.container.style.height = `${height}px`;
         this.particles.resize(width, height);
+        this.approachRings.resize(width, height);
     }
     start() {
         this.gameActive = true;
         this.particles.start();
+        this.approachRings.start();
         this.startNudgeLoop();
     }
     stop() {
         this.gameActive = false;
         this.particles.stop();
+        this.approachRings.stop();
+        // Clear ALL visual state on the keyboard (highlights, nudges, etc.)
+        this.keyboard.reset();
+        this.nudgeKeys.clear();
     }
     startNudgeLoop() {
         const loop = () => {
             if (!this.gameActive)
                 return;
             this.updateNudges();
+            this.updateExpectedKeyIndicator();
             requestAnimationFrame(loop);
         };
         requestAnimationFrame(loop);

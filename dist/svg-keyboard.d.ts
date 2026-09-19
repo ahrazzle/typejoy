@@ -28,12 +28,8 @@ export declare class SVGKeyboardRenderer {
     private keyGap;
     private borderRadius;
     private theme;
-    /** Track depressed keys for CSS animation */
-    private depressedKeys;
     /** Track beat-pulse state */
     private pulseStates;
-    /** Track nudge hints */
-    private nudgeKeys;
     /** Track wrong key shake state */
     private shakeKeys;
     constructor(container: HTMLElement, options?: KeyboardRendererOptions);
@@ -42,8 +38,8 @@ export declare class SVGKeyboardRenderer {
     private getAriaLabel;
     /** Get the SVG element for a specific key */
     getKeyElement(keyId: string): SVGElement | undefined;
-    /** Depress a key (visual feedback for press) */
-    depressKey(keyId: string, duration?: number): void;
+    /** Depress a key with spring-physics feedback (overshoot + bounce) */
+    depressKey(keyId: string): void;
     /** Pulse a key (beat sync) */
     pulseKey(keyId: string, bpm: number): void;
     /** Shake a key (wrong key feedback) */

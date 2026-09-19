@@ -2,7 +2,7 @@ export { RawBus } from './RawBus.js';
 export { NormalizedBus } from './NormalizedBus.js';
 export { BeatClockJudge } from './BeatClockJudge.js';
 export { StaticBeatMap } from './BeatMap.js';
-export { BeatMapGenerator } from './beatmap-generator.js';
+export { BeatMapGenerator, LEAD_IN_MS } from './beatmap-generator.js';
 
 export {
   // Types
@@ -20,6 +20,8 @@ export {
   // Plugin contract
   GamePlugin,
   FeedbackLayer as FeedbackLayerInterface,
+  // Canonical per-difficulty timing windows
+  TIMING_WINDOWS,
 } from './types';
 
 export { FeedbackLayer, FeedbackLayerOptions } from './feedback-layer';

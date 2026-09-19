@@ -183,11 +183,12 @@ export class FeedbackLayer implements FeedbackLayerInterface {
   /** Increment and render the judgment stats (top-left) */
   private updateStatsDisplay(): void {
     if (!this.statsDisplay) return;
+    const c = this.theme.colors;
     this.statsDisplay.innerHTML = `
-      <span style="color:#00e5ff">Perfect: ${this.stats.perfect}</span>
-      <span style="color:#76ff03;margin-left:8px">Great: ${this.stats.great}</span>
-      <span style="color:#ffea00;margin-left:8px">Good: ${this.stats.good}</span>
-      <span style="color:#ff1744;margin-left:8px">Miss: ${this.stats.miss}</span>
+      <span style="color:${c.primary}">Perfect: ${this.stats.perfect}</span>
+      <span style="color:${c.secondary};margin-left:8px">Great: ${this.stats.great}</span>
+      <span style="color:${c.tertiary};margin-left:8px">Good: ${this.stats.good}</span>
+      <span style="color:${c.danger};margin-left:8px">Miss: ${this.stats.miss}</span>
     `;
   }
 
@@ -315,6 +316,7 @@ export class FeedbackLayer implements FeedbackLayerInterface {
     this.particles.setTheme(theme);
     this.comboDisplay.style.color = theme.colors.primary;
     this.comboDisplay.style.textShadow = 'none';
+    this.updateStatsDisplay();
   }
 
   /** Set approach ring preempt time (ms before hit when rings appear) */

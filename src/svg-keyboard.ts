@@ -5,7 +5,7 @@
  * Supports hardware-accelerated CSS transitions and high-contrast mode.
  */
 
-import { KeyDef, KeyboardLayout, QWERTY_LAYOUT, buildKeyMap } from './keyboard-layout';
+import { KeyDef, KeyboardLayout, QWERTY_LAYOUT } from './keyboard-layout';
 import { ThemeDescriptor } from './types';
 
 export interface RenderedKey {
@@ -34,18 +34,13 @@ export class SVGKeyboardRenderer {
   private keyGap: number;
   private borderRadius: number;
   private theme: ThemeDescriptor | null = null;
-  /** Track depressed keys for CSS animation */
-  private depressedKeys: Set<string> = new Set();
   /** Track beat-pulse state */
   private pulseStates: Map<string, { startTime: number; intensity: number }> = new Map();
-  /** Track nudge hints */
-  private nudgeKeys: Map<string, { startTime: number }> = new Map();
   /** Track wrong key shake state */
   private shakeKeys: Map<string, { startTime: number }> = new Map();
 
   constructor(container: HTMLElement, options: KeyboardRendererOptions = {}) {
     this.layout = options.layout ?? QWERTY_LAYOUT;
-    buildKeyMap(this.layout);
     this.unitSize = options.unitSize ?? 48;
     this.keyGap = options.keyGap ?? 4;
     this.borderRadius = options.borderRadius ?? 4;
@@ -355,9 +350,7 @@ export class SVGKeyboardRenderer {
       this.clearKeyHighlight(keyId);
       this.clearNudgeGlow(keyId);
     }
-    this.depressedKeys.clear();
     this.pulseStates.clear();
-    this.nudgeKeys.clear();
     this.shakeKeys.clear();
   }
 }

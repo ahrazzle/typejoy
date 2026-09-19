@@ -63,12 +63,12 @@ async function waitAndPress(key: string, code: string, targetSongTime: number) {
   await new Promise(r => setTimeout(r, 50));
 }
 
-console.log('\nTest 1: Press "h" at exact note time (3000ms)');
-await waitAndPress('h', 'KeyH', 3000);
+console.log(`\nTest 1: Press "h" at exact note time (${notes[0].time}ms)`);
+await waitAndPress('h', 'KeyH', notes[0].time);
 assert(judgments.some(j => j.key === 'h' && j.judgment === 'perfect'), `Expected perfect for "h", got ${JSON.stringify(judgments)}`);
 
-console.log('\nTest 2: Press "i" at exact note time (4500ms)');
-await waitAndPress('i', 'KeyI', 4500);
+console.log(`\nTest 2: Press "i" at exact note time (${notes[1].time}ms)`);
+await waitAndPress('i', 'KeyI', notes[1].time);
 assert(judgments.some(j => j.key === 'i' && j.judgment === 'perfect'), `Expected perfect for "i", got ${JSON.stringify(judgments)}`);
 
 console.log(`\n=== Results: ${passCount} passed, ${failCount} failed ===`);

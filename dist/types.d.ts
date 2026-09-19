@@ -36,7 +36,7 @@ export interface GameConfig {
     /** Accessibility options */
     accessibility: AccessibilityConfig;
 }
-export type Difficulty = 'easy' | 'medium' | 'hard' | 'expert';
+export type Difficulty = 'easy' | 'medium' | 'hard' | 'expert' | 'impossible';
 export interface TimingWindows {
     perfect: number;
     great: number;
@@ -108,10 +108,14 @@ export interface JudgmentEvent {
 export declare const TIMING_WINDOWS: Record<Difficulty, TimingWindows>;
 export interface PluginHooks {
     onHit?(event: JudgmentEvent): void;
-    onMiss?(key: string, expectedKey: string, delta: number): void;
+    onMiss?(key: string, expectedKey: string, delta: number, note?: BeatNote): void;
+    onWrongKey?(key: string, expectedKey: string): void;
     onNoteStale?(note: BeatNote): void;
     onCombo?(count: number, multiplier: number): void;
     onComboBreak?(previousCount: number): void;
+    onStreakThreshold?(count: number): void;
+    /** Called once when the last note is resolved (hit, miss, or stale) */
+    onSongComplete?(results: GameResults): void;
 }
 export type ParticleStyle = 'spark' | 'ring' | 'star' | 'confetti' | 'none';
 export type GlowStyle = 'soft' | 'neon' | 'pulse' | 'none';
@@ -225,5 +229,25 @@ export interface FeedbackLayer {
     start(): void;
     /** Stop the animation loop */
     stop(): void;
+    /** Connect the judge for expected-key indicator and approach rings */
+    setJudge(judge: {
+        getCurrentNote: () => BeatNote | undefined;
+        getNextNotes: (count: number) => Array<{
+            note: BeatNote;
+            timeUntilHit: number;
+        }>;
+        getSongTime: () => number;
+        getNotes: () => readonly BeatNote[];
+    }): void;
+    /** Set approach ring preempt time (ms before hit when rings appear) */
+    setPreemptTime(ms: number): void;
+    /** Set how many upcoming notes to show approach rings for */
+    setNoteCount(count: number): void;
+    /** Calculate accuracy as a weighted average (0.0 to 1.0) */
+    getAccuracy(): number;
+    /** Get letter ranking based on accuracy (S/A/B/C/D/F) */
+    getRanking(): string;
+    /** Play celebration animation on song completion */
+    playCelebration(): void;
 }
 //# sourceMappingURL=types.d.ts.map

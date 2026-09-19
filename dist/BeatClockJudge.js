@@ -19,9 +19,14 @@ export class BeatClockJudge {
     beatMap;
     windows;
     hooks;
+    comboThresholds;
     _combo = 0;
     _maxCombo = 0;
     _cursor = 0;
+    _lastThreshold = 0;
+    _startTime = 0; // Song start time (performance.now())
+    _songCompleteFired = false;
+    _judgmentCounts = { perfect: 0, great: 0, good: 0, miss: 0 };
     // Subscribers to judgment events (for feedback layer, logging, etc.)
     judgmentListeners = new Set();
     // The normalized bus subscription handle (for start/stop)
@@ -34,6 +39,7 @@ export class BeatClockJudge {
             great: config.windows?.great ?? base.great,
             good: config.windows?.good ?? base.good,
         };
+        this.comboThresholds = config.comboThresholds ?? { subtle: 10, moderate: 25, intense: 50 };
         this.hooks = hooks;
     }
     // ---- Cursor / state access ----------------------------------------------
@@ -44,11 +50,15 @@ export class BeatClockJudge {
     getCurrentPosition() {
         return this._cursor;
     }
+    /** Public accessor for the underlying beat-map notes (for approach rings). */
+    getNotes() {
+        return this.beatMap.notes;
+    }
     /**
      * Read-only accessor for the note at a given beat position.
      * Both the judge and the feedback layer can query this independently.
      */
-    getCurrentNote(beatPosition) {
+    getNoteAt(beatPosition) {
         return this.beatMap.notes[beatPosition];
     }
     /**
@@ -56,6 +66,39 @@ export class BeatClockJudge {
      */
     getExpectedNote() {
         return this.beatMap.notes[this._cursor];
+    }
+    /**
+     * Get the note at the current cursor position (the note the player should hit now).
+     * Consumed by the feedback layer to render the expected-key indicator.
+     */
+    getCurrentNote() {
+        return this.beatMap.notes[this._cursor];
+    }
+    /**
+     * Get the next N upcoming notes with their time-until-hit values.
+     * Used by the approach ring system to render multiple simultaneous rings.
+     * @param count  Number of upcoming notes to return
+     * @returns Array of notes with timeUntilHit in ms
+     */
+    getNextNotes(count = 3) {
+        const songTime = this.getSongTime();
+        const result = [];
+        for (let i = this._cursor; i < this.beatMap.length && result.length < count; i++) {
+            const note = this.beatMap.notes[i];
+            const timeUntilHit = note.time - songTime;
+            // Only include notes that are within the approach window
+            if (timeUntilHit > -200) {
+                result.push({ note, timeUntilHit });
+            }
+        }
+        return result;
+    }
+    /**
+     * Subscribe to judgment events (for the feedback layer, stats, etc.).
+     */
+    onJudgment(fn) {
+        this.judgmentListeners.add(fn);
+        return () => this.judgmentListeners.delete(fn);
     }
     // ---- Subscription -------------------------------------------------------
     /**
@@ -70,12 +113,13 @@ export class BeatClockJudge {
         this.unsubChar?.();
         this.unsubChar = null;
     }
-    /**
-     * Subscribe to judgment events (for the feedback layer, stats, etc.).
-     */
-    onJudgment(fn) {
-        this.judgmentListeners.add(fn);
-        return () => this.judgmentListeners.delete(fn);
+    /** Set the song start time (must be called before judging begins) */
+    setStartTime(time) {
+        this._startTime = time;
+    }
+    /** Get the current song time relative to start */
+    getSongTime() {
+        return performance.now() - this._startTime;
     }
     // ---- State accessors ----------------------------------------------------
     get state() {
@@ -110,18 +154,30 @@ export class BeatClockJudge {
     onChar(evt) {
         if (evt.phase !== 'press')
             return;
+        // If the song is complete, ignore any remaining keypresses
+        if (this._cursor >= this.beatMap.length)
+            return;
         const expected = this.getExpectedNote();
         if (!expected) {
             // No more notes — song complete.
             return;
         }
-        if (evt.char !== expected.key) {
-            // WRONG KEY — silently ignore. No judgment, no combo break, no cursor advance.
+        // Correct key — compute timing delta relative to song start
+        const songTime = evt.raw.timestamp - this._startTime;
+        const delta = songTime - expected.time;
+        const absDelta = Math.abs(delta);
+        // Ignore keypresses that happen before the note's window opens (e.g., during lead-in)
+        if (delta < -this.windows.good) {
+            // Too early — don't register as wrong, don't break combo
             return;
         }
-        // Correct key — compute timing delta.
-        const delta = evt.raw.timestamp - expected.time;
-        const absDelta = Math.abs(delta);
+        // Case-insensitive comparison — a kid with caps lock on (or capitalizing
+        // the first letter, as taught) should still hit the note.
+        if (evt.char.toLowerCase() !== expected.key.toLowerCase()) {
+            // WRONG KEY — emit onWrongKey hook for feedback, but don't advance cursor or break combo
+            this.hooks.onWrongKey?.(evt.char, expected.key);
+            return;
+        }
         let judgment;
         if (absDelta <= this.windows.perfect) {
             judgment = 'perfect';
@@ -145,6 +201,9 @@ export class BeatClockJudge {
         this._combo++;
         if (this._combo > this._maxCombo)
             this._maxCombo = this._combo;
+        this._judgmentCounts[judgment]++;
+        // Emit onStreakThreshold when combo crosses a threshold
+        this.checkStreakThreshold();
         // Advance cursor
         this._cursor++;
         const multiplier = this.computeMultiplier(this._combo);
@@ -161,11 +220,13 @@ export class BeatClockJudge {
         // Emit to plugins
         this.hooks.onHit?.(event);
         this.hooks.onCombo?.(this._combo, multiplier);
+        this.maybeFireSongComplete();
     }
     handleMiss(evt, expected, delta) {
         // Correct key, wrong time → miss. Breaks combo.
         const previousCombo = this._combo;
         this._combo = 0;
+        this._judgmentCounts.miss++;
         // Still advance cursor — the note was attempted.
         this._cursor++;
         const event = {
@@ -179,9 +240,11 @@ export class BeatClockJudge {
         for (const fn of this.judgmentListeners)
             fn(event);
         // Emit to plugins
-        this.hooks.onMiss?.(evt.char, expected.key, delta);
-        this.hooks.onComboBreak?.(previousCombo);
+        this.hooks.onMiss?.(evt.char, expected.key, delta, expected);
+        if (previousCombo > 0)
+            this.hooks.onComboBreak?.(previousCombo);
         this.hooks.onCombo?.(0, 1);
+        this.maybeFireSongComplete();
     }
     // ---- Stale note detection -----------------------------------------------
     /**
@@ -189,24 +252,63 @@ export class BeatClockJudge {
      * Detects notes whose windows have fully passed without a correct press
      * and fires onNoteStale for each. Advances the cursor past them.
      *
-     * @param currentSongTime  Current song time in ms (same clock as note.time)
+     * @param currentSongTime  Current song time in ms (same clock as note.time).
+     *                         Defaults to the live song clock (performance.now()
+     *                         relative to setStartTime) when omitted.
      */
-    tick(currentSongTime) {
+    tick(currentSongTime = this.getSongTime()) {
+        const songTime = currentSongTime;
         while (this._cursor < this.beatMap.length) {
             const note = this.beatMap.notes[this._cursor];
             // A note is stale if current time has passed note.time + good window.
-            if (currentSongTime > note.time + this.windows.good) {
+            if (songTime > note.time + this.windows.good) {
                 this._cursor++;
                 const previousCombo = this._combo;
                 this._combo = 0;
+                this._judgmentCounts.miss++;
                 this.hooks.onNoteStale?.(note);
-                this.hooks.onComboBreak?.(previousCombo);
+                if (previousCombo > 0)
+                    this.hooks.onComboBreak?.(previousCombo);
                 this.hooks.onCombo?.(0, 1);
             }
             else {
                 break;
             }
         }
+        this.maybeFireSongComplete();
+    }
+    /**
+     * Fire onSongComplete exactly once when the cursor has moved past the last
+     * note. Carries the final GameResults (judgment counts, score, accuracy).
+     */
+    maybeFireSongComplete() {
+        if (this._songCompleteFired)
+            return;
+        if (this.beatMap.length === 0)
+            return;
+        if (this._cursor < this.beatMap.length)
+            return;
+        this._songCompleteFired = true;
+        const { perfect, great, good, miss } = this._judgmentCounts;
+        const total = this.beatMap.length;
+        // Accuracy weights match the feedback layer: perfect=1, great=0.75, good=0.5, miss=0
+        const accuracy = (perfect + great * 0.75 + good * 0.5) / total;
+        const results = {
+            title: '',
+            artist: '',
+            score: perfect * 300 + great * 200 + good * 100,
+            maxCombo: this._maxCombo,
+            totalNotes: total,
+            judgments: { perfect, great, good, miss },
+            accuracy,
+            passed: accuracy >= 0.6,
+            duration: this.beatMap.notes[total - 1].time,
+        };
+        this.hooks.onSongComplete?.(results);
+    }
+    /** Read-only judgment counts (perfect/great/good/miss) for this session. */
+    get judgmentCounts() {
+        return { ...this._judgmentCounts };
     }
     // ---- Helpers ------------------------------------------------------------
     /**
@@ -225,11 +327,33 @@ export class BeatClockJudge {
             return 2;
         return 1;
     }
+    /**
+     * Checks if the current combo has crossed a threshold since the last emission.
+     * Called after every successful hit. Fires onStreakThreshold once per threshold.
+     */
+    checkStreakThreshold() {
+        const { subtle, moderate, intense } = this.comboThresholds;
+        if (this._combo >= intense && this._lastThreshold < intense) {
+            this._lastThreshold = intense;
+            this.hooks.onStreakThreshold?.(intense);
+        }
+        else if (this._combo >= moderate && this._lastThreshold < moderate) {
+            this._lastThreshold = moderate;
+            this.hooks.onStreakThreshold?.(moderate);
+        }
+        else if (this._combo >= subtle && this._lastThreshold < subtle) {
+            this._lastThreshold = subtle;
+            this.hooks.onStreakThreshold?.(subtle);
+        }
+    }
     /** Reset judge state (for replays / retries). */
     reset() {
         this._combo = 0;
         this._maxCombo = 0;
         this._cursor = 0;
+        this._lastThreshold = 0;
+        this._songCompleteFired = false;
+        this._judgmentCounts = { perfect: 0, great: 0, good: 0, miss: 0 };
     }
 }
 //# sourceMappingURL=BeatClockJudge.js.map

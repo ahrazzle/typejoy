@@ -26,10 +26,12 @@ var RawBus = class {
   }
   // ---- Subscription -------------------------------------------------------
   /**
-   * Subscribe to raw key events. Returns an unsubscribe function.
+   * Subscribe to raw keydown events only. Returns an unsubscribe function.
    */
   onKeyDown(fn) {
-    return this.emitter.on(fn);
+    return this.emitter.on((evt) => {
+      if (evt.type === "keydown") fn(evt);
+    });
   }
   /**
    * Subscribe to *all* raw key events (both down and up). Returns an
@@ -271,6 +273,8 @@ var BeatClockJudge = class {
   _lastThreshold = 0;
   _startTime = 0;
   // Song start time (performance.now())
+  _songCompleteFired = false;
+  _judgmentCounts = { perfect: 0, great: 0, good: 0, miss: 0 };
   // Subscribers to judgment events (for feedback layer, logging, etc.)
   judgmentListeners = /* @__PURE__ */ new Set();
   // The normalized bus subscription handle (for start/stop)
@@ -427,6 +431,7 @@ var BeatClockJudge = class {
   handleHit(judgment, evt, note, delta) {
     this._combo++;
     if (this._combo > this._maxCombo) this._maxCombo = this._combo;
+    this._judgmentCounts[judgment]++;
     this.checkStreakThreshold();
     this._cursor++;
     const multiplier = this.computeMultiplier(this._combo);
@@ -440,10 +445,12 @@ var BeatClockJudge = class {
     for (const fn of this.judgmentListeners) fn(event);
     this.hooks.onHit?.(event);
     this.hooks.onCombo?.(this._combo, multiplier);
+    this.maybeFireSongComplete();
   }
   handleMiss(evt, expected, delta) {
     const previousCombo = this._combo;
     this._combo = 0;
+    this._judgmentCounts.miss++;
     this._cursor++;
     const event = {
       judgment: "miss",
@@ -454,8 +461,9 @@ var BeatClockJudge = class {
     };
     for (const fn of this.judgmentListeners) fn(event);
     this.hooks.onMiss?.(evt.char, expected.key, delta, expected);
-    this.hooks.onComboBreak?.(previousCombo);
+    if (previousCombo > 0) this.hooks.onComboBreak?.(previousCombo);
     this.hooks.onCombo?.(0, 1);
+    this.maybeFireSongComplete();
   }
   // ---- Stale note detection -----------------------------------------------
   /**
@@ -463,23 +471,56 @@ var BeatClockJudge = class {
    * Detects notes whose windows have fully passed without a correct press
    * and fires onNoteStale for each. Advances the cursor past them.
    *
-   * @param currentSongTime  Current song time in ms (same clock as note.time)
+   * @param currentSongTime  Current song time in ms (same clock as note.time).
+   *                         Defaults to the live song clock (performance.now()
+   *                         relative to setStartTime) when omitted.
    */
-  tick(_currentSongTime) {
-    const songTime = this.getSongTime();
+  tick(currentSongTime = this.getSongTime()) {
+    const songTime = currentSongTime;
     while (this._cursor < this.beatMap.length) {
       const note = this.beatMap.notes[this._cursor];
       if (songTime > note.time + this.windows.good) {
         this._cursor++;
         const previousCombo = this._combo;
         this._combo = 0;
+        this._judgmentCounts.miss++;
         this.hooks.onNoteStale?.(note);
-        this.hooks.onComboBreak?.(previousCombo);
+        if (previousCombo > 0) this.hooks.onComboBreak?.(previousCombo);
         this.hooks.onCombo?.(0, 1);
       } else {
         break;
       }
     }
+    this.maybeFireSongComplete();
+  }
+  /**
+   * Fire onSongComplete exactly once when the cursor has moved past the last
+   * note. Carries the final GameResults (judgment counts, score, accuracy).
+   */
+  maybeFireSongComplete() {
+    if (this._songCompleteFired) return;
+    if (this.beatMap.length === 0) return;
+    if (this._cursor < this.beatMap.length) return;
+    this._songCompleteFired = true;
+    const { perfect, great, good, miss } = this._judgmentCounts;
+    const total = this.beatMap.length;
+    const accuracy = (perfect + great * 0.75 + good * 0.5) / total;
+    const results = {
+      title: "",
+      artist: "",
+      score: perfect * 300 + great * 200 + good * 100,
+      maxCombo: this._maxCombo,
+      totalNotes: total,
+      judgments: { perfect, great, good, miss },
+      accuracy,
+      passed: accuracy >= 0.6,
+      duration: this.beatMap.notes[total - 1].time
+    };
+    this.hooks.onSongComplete?.(results);
+  }
+  /** Read-only judgment counts (perfect/great/good/miss) for this session. */
+  get judgmentCounts() {
+    return { ...this._judgmentCounts };
   }
   // ---- Helpers ------------------------------------------------------------
   /**
@@ -518,6 +559,8 @@ var BeatClockJudge = class {
     this._maxCombo = 0;
     this._cursor = 0;
     this._lastThreshold = 0;
+    this._songCompleteFired = false;
+    this._judgmentCounts = { perfect: 0, great: 0, good: 0, miss: 0 };
   }
 };
 
@@ -544,12 +587,12 @@ var StaticBeatMap = class {
 };
 
 // src/beatmap-generator.ts
-var TIMING_WINDOWS2 = {
-  easy: 500,
-  medium: 300,
-  hard: 150,
-  expert: 80,
-  impossible: 40
+var PERFECT_WINDOWS = {
+  easy: TIMING_WINDOWS.easy.perfect,
+  medium: TIMING_WINDOWS.medium.perfect,
+  hard: TIMING_WINDOWS.hard.perfect,
+  expert: TIMING_WINDOWS.expert.perfect,
+  impossible: TIMING_WINDOWS.impossible.perfect
 };
 var LEAD_IN_MS = {
   easy: 1500,
@@ -575,16 +618,12 @@ var BeatMapGenerator = class {
   generate(content, options) {
     const bpm = effectiveBpm(options);
     const beatInterval = 6e4 / bpm;
-    const window2 = TIMING_WINDOWS2[options.difficulty];
+    const window2 = PERFECT_WINDOWS[options.difficulty];
     const chars = Array.from(content);
     const notes = [];
     for (let i = 0; i < chars.length; i++) {
-      const key = chars[i];
-      if (shouldSkip(key, options.difficulty, i)) {
-        continue;
-      }
       notes.push({
-        key,
+        key: chars[i],
         time: LEAD_IN_MS[options.difficulty] + Math.round(i * beatInterval),
         window: window2
       });
@@ -592,18 +631,6 @@ var BeatMapGenerator = class {
     return notes;
   }
 };
-function shouldSkip(_key, difficulty, _index) {
-  switch (difficulty) {
-    case "easy":
-    case "medium":
-    case "hard":
-    case "expert":
-    case "impossible":
-      return false;
-    default:
-      return false;
-  }
-}
 
 // src/keyboard-layout.ts
 var QWERTY_LAYOUT = {
@@ -734,17 +761,12 @@ var SVGKeyboardRenderer = class {
   keyGap;
   borderRadius;
   theme = null;
-  /** Track depressed keys for CSS animation */
-  depressedKeys = /* @__PURE__ */ new Set();
   /** Track beat-pulse state */
   pulseStates = /* @__PURE__ */ new Map();
-  /** Track nudge hints */
-  nudgeKeys = /* @__PURE__ */ new Map();
   /** Track wrong key shake state */
   shakeKeys = /* @__PURE__ */ new Map();
   constructor(container, options = {}) {
     this.layout = options.layout ?? QWERTY_LAYOUT;
-    buildKeyMap(this.layout);
     this.unitSize = options.unitSize ?? 48;
     this.keyGap = options.keyGap ?? 4;
     this.borderRadius = options.borderRadius ?? 4;
@@ -1009,9 +1031,7 @@ var SVGKeyboardRenderer = class {
       this.clearKeyHighlight(keyId);
       this.clearNudgeGlow(keyId);
     }
-    this.depressedKeys.clear();
     this.pulseStates.clear();
-    this.nudgeKeys.clear();
     this.shakeKeys.clear();
   }
 };
@@ -1830,11 +1850,12 @@ var FeedbackLayer = class {
   /** Increment and render the judgment stats (top-left) */
   updateStatsDisplay() {
     if (!this.statsDisplay) return;
+    const c = this.theme.colors;
     this.statsDisplay.innerHTML = `
-      <span style="color:#00e5ff">Perfect: ${this.stats.perfect}</span>
-      <span style="color:#76ff03;margin-left:8px">Great: ${this.stats.great}</span>
-      <span style="color:#ffea00;margin-left:8px">Good: ${this.stats.good}</span>
-      <span style="color:#ff1744;margin-left:8px">Miss: ${this.stats.miss}</span>
+      <span style="color:${c.primary}">Perfect: ${this.stats.perfect}</span>
+      <span style="color:${c.secondary};margin-left:8px">Great: ${this.stats.great}</span>
+      <span style="color:${c.tertiary};margin-left:8px">Good: ${this.stats.good}</span>
+      <span style="color:${c.danger};margin-left:8px">Miss: ${this.stats.miss}</span>
     `;
   }
   /** Reset judgment stats (called at game start) */
@@ -1926,6 +1947,7 @@ var FeedbackLayer = class {
     this.particles.setTheme(theme);
     this.comboDisplay.style.color = theme.colors.primary;
     this.comboDisplay.style.textShadow = "none";
+    this.updateStatsDisplay();
   }
   /** Set approach ring preempt time (ms before hit when rings appear) */
   setPreemptTime(ms) {
@@ -2451,33 +2473,62 @@ var DebugPlugin = class {
 };
 
 // src/session.ts
-var LEAD_IN_MS2 = {
-  easy: 1500,
-  medium: 1e3,
-  hard: 600,
-  expert: 350,
-  impossible: 250
-};
 function createSession(options) {
   const difficulty = options.difficulty ?? "easy";
   const bpm = options.bpm ?? 60;
+  const userHooks = options.hooks ?? {};
   const feedback = new FeedbackLayer({
     container: options.container,
     ...options.feedback
   });
   const notes = new BeatMapGenerator().generate(options.content, { bpm, difficulty });
   const beatMap = new StaticBeatMap(notes);
-  const judge = new BeatClockJudge(beatMap, { difficulty }, options.hooks);
+  const hooks = {
+    ...userHooks,
+    onHit: (event) => {
+      if (event.judgment === "miss") {
+        feedback.renderMiss(event.key, event.note.key);
+      } else {
+        feedback.renderHit(event.judgment, event.key, event.delta);
+      }
+      feedback.markNoteJudged(event.note, event.judgment);
+      userHooks.onHit?.(event);
+    },
+    onMiss: (key, expectedKey, delta, note) => {
+      feedback.renderMiss(key, expectedKey);
+      if (note) feedback.markNoteJudged(note, "miss");
+      userHooks.onMiss?.(key, expectedKey, delta, note);
+    },
+    onWrongKey: (key, expectedKey) => {
+      feedback.renderMiss(key, expectedKey);
+      userHooks.onWrongKey?.(key, expectedKey);
+    },
+    onNoteStale: (note) => {
+      feedback.markNoteJudged(note, "miss");
+      userHooks.onNoteStale?.(note);
+    },
+    onCombo: (count, multiplier) => {
+      feedback.renderCombo(count, multiplier);
+      userHooks.onCombo?.(count, multiplier);
+    },
+    onSongComplete: (results) => {
+      feedback.playCelebration();
+      userHooks.onSongComplete?.(results);
+    }
+  };
+  const judge = new BeatClockJudge(beatMap, { difficulty }, hooks);
   feedback.setJudge(judge);
-  feedback.setPreemptTime(LEAD_IN_MS2[difficulty]);
+  feedback.setPreemptTime(LEAD_IN_MS[difficulty]);
   const startTime = performance.now();
   judge.setStartTime(startTime);
   feedback.start();
+  const tickHandle = setInterval(() => judge.tick(), 100);
   const rawBus = new RawBus(window);
   const normBus = new NormalizedBus(rawBus);
   normBus.start();
   judge.attach(normBus);
   rawBus.start();
+  let destroyed = false;
   return {
     judge,
     feedback,
@@ -2486,6 +2537,9 @@ function createSession(options) {
     normBus,
     songTime: () => performance.now() - startTime,
     destroy: () => {
+      if (destroyed) return;
+      destroyed = true;
+      clearInterval(tickHandle);
       rawBus.stop();
       normBus.stop();
       judge.detach();
@@ -2500,12 +2554,14 @@ export {
   DEFAULT_THEME,
   DebugPlugin,
   FeedbackLayer,
+  LEAD_IN_MS,
   NormalizedBus,
   ParticleSystem,
   QWERTY_LAYOUT,
   RawBus,
   SVGKeyboardRenderer,
   StaticBeatMap,
+  TIMING_WINDOWS,
   buildKeyMap,
   createSession,
   normalizeKey2 as normalizeKey

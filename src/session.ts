@@ -28,7 +28,7 @@ import { RawBus } from './RawBus.js';
 import { NormalizedBus } from './NormalizedBus.js';
 import { BeatClockJudge } from './BeatClockJudge.js';
 import { StaticBeatMap } from './BeatMap.js';
-import { BeatMapGenerator } from './beatmap-generator.js';
+import { BeatMapGenerator, LEAD_IN_MS } from './beatmap-generator.js';
 import { FeedbackLayer, FeedbackLayerOptions } from './feedback-layer.js';
 import type { Difficulty, PluginHooks } from './types.js';
 
@@ -59,14 +59,9 @@ export interface TypejoySession {
   songTime(): number;
 }
 
-/** Precomputed per-difficulty lead-in — matches the ring preempt times. */
-const LEAD_IN_MS: Record<Difficulty, number> = {
-  easy: 1500,
-  medium: 1000,
-  hard: 600,
-  expert: 350,
-  impossible: 250,
-};
+/** Precomputed per-difficulty lead-in — single-sourced from the generator so
+ *  the session's ring preempt time always matches the first note's lead-in. */
+export { LEAD_IN_MS };
 
 /**
  * Create a fully-wired, safely-ordered Typejoy session.
@@ -75,6 +70,7 @@ const LEAD_IN_MS: Record<Difficulty, number> = {
 export function createSession(options: SessionOptions): TypejoySession {
   const difficulty = options.difficulty ?? 'easy';
   const bpm = options.bpm ?? 60;
+  const userHooks = options.hooks ?? {};
 
   // 1. Feedback layer — constructed but NOT started (no animation yet)
   const feedback = new FeedbackLayer({
@@ -82,10 +78,46 @@ export function createSession(options: SessionOptions): TypejoySession {
     ...options.feedback,
   });
 
-  // 2. Beat-map + judge
+  // 2. Beat-map + judge.
+  //    Judge events are wired into the feedback layer automatically
+  //    (hit/miss visuals, ring collapse, combo display, celebration);
+  //    the caller's hooks are forwarded alongside, never replaced.
   const notes = new BeatMapGenerator().generate(options.content, { bpm, difficulty });
   const beatMap = new StaticBeatMap(notes);
-  const judge = new BeatClockJudge(beatMap, { difficulty }, options.hooks);
+  const hooks: Partial<PluginHooks> = {
+    ...userHooks,
+    onHit: (event) => {
+      if (event.judgment === 'miss') {
+        feedback.renderMiss(event.key, event.note.key);
+      } else {
+        feedback.renderHit(event.judgment, event.key, event.delta);
+      }
+      feedback.markNoteJudged(event.note, event.judgment);
+      userHooks.onHit?.(event);
+    },
+    onMiss: (key, expectedKey, delta, note) => {
+      feedback.renderMiss(key, expectedKey);
+      if (note) feedback.markNoteJudged(note, 'miss');
+      userHooks.onMiss?.(key, expectedKey, delta, note);
+    },
+    onWrongKey: (key, expectedKey) => {
+      feedback.renderMiss(key, expectedKey);
+      userHooks.onWrongKey?.(key, expectedKey);
+    },
+    onNoteStale: (note) => {
+      feedback.markNoteJudged(note, 'miss');
+      userHooks.onNoteStale?.(note);
+    },
+    onCombo: (count, multiplier) => {
+      feedback.renderCombo(count, multiplier);
+      userHooks.onCombo?.(count, multiplier);
+    },
+    onSongComplete: (results) => {
+      feedback.playCelebration();
+      userHooks.onSongComplete?.(results);
+    },
+  };
+  const judge = new BeatClockJudge(beatMap, { difficulty }, hooks);
 
   // 3. Wire judge into feedback BEFORE starting animation (approach rings + indicator)
   feedback.setJudge(judge);
@@ -98,6 +130,10 @@ export function createSession(options: SessionOptions): TypejoySession {
   // 5. Start animation loops (safe: judge exists now)
   feedback.start();
 
+  // 5b. Stale-note tick loop — without this, unplayed notes never resolve
+  //      and onSongComplete would never fire.
+  const tickHandle = setInterval(() => judge.tick(), 100);
+
   // 6. Attach the bus chain — keydown events now flow through the judge
   const rawBus = new RawBus(window);
   const normBus = new NormalizedBus(rawBus);
@@ -105,6 +141,7 @@ export function createSession(options: SessionOptions): TypejoySession {
   judge.attach(normBus);
   rawBus.start();
 
+  let destroyed = false;
   return {
     judge,
     feedback,
@@ -113,6 +150,9 @@ export function createSession(options: SessionOptions): TypejoySession {
     normBus,
     songTime: () => performance.now() - startTime,
     destroy: () => {
+      if (destroyed) return;
+      destroyed = true;
+      clearInterval(tickHandle);
       rawBus.stop();
       normBus.stop();
       judge.detach();

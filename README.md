@@ -22,7 +22,7 @@ npm install
 ### 2. Build the bundle
 
 ```bash
-npx esbuild src/index.ts --bundle --outfile=dist/game.js --format=esm
+npm run build   # bundles src/index.ts → dist/game.js (demo) + dist/bundle.js
 ```
 
 ### 3. Create your first game session
@@ -44,7 +44,7 @@ npx esbuild src/index.ts --bundle --outfile=dist/game.js --format=esm
 </script>
 ```
 
-That's the entire bootstrap. `createSession()` wires the full pipeline (`RawBus → NormalizedBus → BeatClockJudge → FeedbackLayer`) in the safe order — judge wired into feedback before animation starts, timing baseline set before any key can arrive.
+That's the entire bootstrap. `createSession()` wires the full pipeline (`RawBus → NormalizedBus → BeatClockJudge → FeedbackLayer`) in the safe order — judge wired into feedback before animation starts, timing baseline set before any key can arrive. Judgment visuals (hit flashes, approach-ring collapse, combo display, song-complete celebration) render automatically; the `hooks` you pass are forwarded alongside, never replaced.
 
 ### 4. React to gameplay
 
