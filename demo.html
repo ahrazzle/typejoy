@@ -55,12 +55,13 @@
       gap: 12px;
     }
     .control-group {
+      min-width: min(200px, 100%);
       background: var(--surface);
       border-radius: 8px;
       padding: 14px;
       border: 1px solid rgba(255,255,255,0.06);
       flex: 1;
-      min-width: 200px;
+
     }
     .control-group h3 {
       margin: 0 0 10px 0;
@@ -334,6 +335,14 @@
       font-size: 11px;
       color: var(--muted);
     }
+    button:focus-visible, input:focus-visible, select:focus-visible {
+      outline: 2px solid var(--accent); outline-offset: 3px;
+    }
+    @media (max-width: 600px) {
+      body { padding: 16px; }
+      .control-group { flex-basis: 100%; }
+      .onboarding-content { max-height: 85vh; overflow-y: auto; padding: 20px; }
+    }
   </style>
 </head>
 <body>
@@ -350,17 +359,17 @@
     <div class="controls">
       <div class="control-group">
         <h3>Beat-Map Settings</h3>
-        <label>Content (type your own!)</label>
+        <label for="content">Content (type your own!)</label>
         <input type="text" id="content" value="hello world" />
         <div style="margin-top: 8px">
-          <label>BPM (speed)</label>
+          <label for="bpm">BPM (speed)</label>
           <div class="row">
             <input type="range" id="bpm" min="20" max="240" value="40" />
             <span id="bpm-val" style="min-width:36px;text-align:right;font-size:13px">40</span>
           </div>
         </div>
         <div style="margin-top: 8px">
-          <label>Difficulty</label>
+          <label for="difficulty">Difficulty</label>
           <select id="difficulty">
             <option value="easy">Easy (±150ms)</option>
             <option value="medium">Medium (±80ms)</option>
@@ -371,7 +380,7 @@
         </div>
         <div style="margin-top: 10px; display: flex; gap: 8px;">
           <button id="start-btn" class="large">▶ Start Game</button>
-          <button id="how-to-play-btn" class="secondary">?</button>
+          <button id="how-to-play-btn" class="secondary" aria-label="How to play">?</button>
         </div>
       </div>
 
@@ -448,7 +457,7 @@
   </div>
 
   <script type="module">
-    import { RawBus, NormalizedBus, BeatClockJudge, StaticBeatMap, BeatMapGenerator, FeedbackLayer, DebugPlugin } from './dist/game.js?v=8';
+    import { RawBus, NormalizedBus, BeatClockJudge, StaticBeatMap, BeatMapGenerator, FeedbackLayer, DebugPlugin, TIMING_WINDOWS } from './dist/game.js?v=8';
 
     // ── State ─────────────────────────────────────────────────────────────
     let feedbackLayer = null;
@@ -478,9 +487,19 @@
     // ── Initialize Feedback Layer ─────────────────────────────────────────
     feedbackLayer = new FeedbackLayer({
       container: stage,
-      width: 900,
+      width: Math.min(900, stage.parentElement.clientWidth),
       height: 320,
     });
+    // Follow the available width without restarting an active song.
+    const stageObserver = new ResizeObserver(([entry]) => {
+      const width = Math.min(900, entry.contentRect.width);
+      if (width > 0) feedbackLayer.resize(width, 320);
+    });
+    stageObserver.observe(stage.parentElement);
+    for (const option of difficultySelect.options) {
+      const name = option.value[0].toUpperCase() + option.value.slice(1);
+      option.textContent = `${name} (Perfect ±${TIMING_WINDOWS[option.value].perfect}ms)`;
+    }
     // Don't start yet — wait for Start button
 
     // ── Debug Plugin (created per game) ───────────────────────────────────
